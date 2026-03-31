@@ -2,6 +2,24 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-03-31 | Session: Function list table design + nono sandbox setup
+Worked on: Designed function list table feature, set up nono sandbox for autonomous development
+Completed:
+- Brainstormed and finalized feature design (table with name, runtime, status, url, replicas, actions columns)
+- Designed useFunctionsList merging hook (repos + deployments → FunctionListItem[])
+- Updated features.json with refined feature steps
+- Updated design doc with merging hook pattern and raw deployer PoC note
+- Created implementation plan (docs/plans/active/002-function-list-table.md)
+- Captured real K8s deployment response (.tmp/k8s-deployment-response.json)
+- Captured real GitHub search response (.tmp/gh-search-response.json)
+- Created fine-grained GitHub PAT scoped to func-console (read + PR write)
+- Set up nono sandbox profile (claude-code-func-console) with credential injection
+- Verified: gh api, yarn test, plugin loading all work in sandbox
+- Verified: destructive commands blocked (rm, oc, sudo, ssh keys)
+Left off: Playwright browser access not working in sandbox (needs investigation). Ready to execute plan.
+Blockers: Playwright plugin can't execute browser inside nono sandbox — needs either npm cache fix or browser binary permission
+
+---
 ## 2026-03-30 | Session: Replace nginx with Go backend
 Worked on: Replaced nginx reverse proxy with custom Go backend server
 Completed:
