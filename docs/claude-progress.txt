@@ -2,6 +2,21 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-04-01 | Session: Function list table implementation
+Worked on: Executed plan 002-function-list-table — full TDD implementation of function list table feature
+Completed:
+- Created DeployedFunction, RepoInfo, FunctionListItem types (src/services/types.ts)
+- Created useClusterService and useSourceControl hook skeletons with hardcoded data from real API responses
+- TDD implemented mergeFunctionData pure function and useFunctionsList hook (4 test cases)
+- TDD implemented FunctionTable component with PatternFly table and pagination (9 test cases)
+- Migrated i18n keys from sentence-case to camelCase, added table column keys
+- Wired FunctionTable into FunctionsListPage with conditional rendering (4 test cases)
+- Added Cypress e2e tests for table rendering and navigation
+- Set feature "passes": true in features.json
+Left off: Plan 002 complete. Next feature: Function Create Page.
+Blockers: None
+
+---
 ## 2026-04-01 | Session: Nono sandbox Playwright fix + docs consolidation
 Worked on: Resolved Playwright browser blocker in nono sandbox, consolidated commit message docs, added planning guide and architecture rules
 Completed:
