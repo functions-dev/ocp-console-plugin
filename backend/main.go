@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/ory/viper"
@@ -163,7 +164,7 @@ func handleFuncCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := generateCIWorkflow(root, cfg.Branch); err != nil {
+	if err := generateCIWorkflow(root, cfg.Branch, cfg.Registry); err != nil {
 		http.Error(w, "failed to generate CI workflow: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -214,9 +215,13 @@ func handleFuncCreate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func generateCIWorkflow(root, branch string) error {
+const ocpInternalRegistry = "image-registry.openshift-image-registry.svc:5000/"
+
+func generateCIWorkflow(root, branch, registry string) error {
 	ciMu.Lock()
 	defer ciMu.Unlock()
+
+	useRegistryLogin := !strings.HasPrefix(registry, ocpInternalRegistry)
 
 	viper.Set(ci.PlatformFlag, ci.DefaultPlatform)
 	viper.Set(ci.PathFlag, root)
@@ -227,7 +232,7 @@ func generateCIWorkflow(root, branch string) error {
 	viper.Set(ci.RegistryUserVariableNameFlag, ci.DefaultRegistryUserVariableName)
 	viper.Set(ci.RegistryPassSecretNameFlag, ci.DefaultRegistryPassSecretName)
 	viper.Set(ci.RegistryUrlVariableNameFlag, ci.DefaultRegistryUrlVariableName)
-	viper.Set(ci.UseRegistryLoginFlag, ci.DefaultUseRegistryLogin)
+	viper.Set(ci.UseRegistryLoginFlag, useRegistryLogin)
 	viper.Set(ci.WorkflowDispatchFlag, ci.DefaultWorkflowDispatch)
 	viper.Set(ci.UseRemoteBuildFlag, ci.DefaultUseRemoteBuild)
 	viper.Set(ci.UseSelfHostedRunnerFlag, ci.DefaultUseSelfHostedRunner)
