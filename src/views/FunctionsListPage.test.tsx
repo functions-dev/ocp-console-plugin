@@ -26,6 +26,16 @@ jest.mock('../services/cluster/useClusterService', () => ({
   useClusterService: () => mockUseClusterService(),
 }));
 
+const mockUsePat = jest.fn();
+jest.mock('../hooks/usePat', () => ({
+  usePat: () => mockUsePat(),
+}));
+
+jest.mock('../components/PatModal', () => ({
+  PatModal: ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <div data-testid="pat-modal">PatModal-open</div> : null,
+}));
+
 jest.mock('../components/FunctionTable', () => ({
   FunctionTable: ({ functions }: { functions: { name: string }[] }) =>
     functions.map((f) => f.name).join(','),
@@ -37,6 +47,7 @@ afterEach(() => {
 
 describe('FunctionsListPage', () => {
   it('renders a spinner while loading', () => {
+    mockUsePat.mockReturnValue({ pat: 'ghp_test', setPat: jest.fn(), clearPat: jest.fn() });
     mockUseSourceControl.mockReturnValue({
       listFunctionRepos: jest.fn().mockResolvedValue([]),
       fetchFileContent: jest.fn(),
@@ -53,6 +64,7 @@ describe('FunctionsListPage', () => {
   });
 
   it('renders the empty state when loaded with no functions', async () => {
+    mockUsePat.mockReturnValue({ pat: 'ghp_test', setPat: jest.fn(), clearPat: jest.fn() });
     mockUseSourceControl.mockReturnValue({
       listFunctionRepos: jest.fn().mockResolvedValue([]),
       fetchFileContent: jest.fn(),
@@ -69,6 +81,7 @@ describe('FunctionsListPage', () => {
   });
 
   it('renders table when functions are loaded', async () => {
+    mockUsePat.mockReturnValue({ pat: 'ghp_test', setPat: jest.fn(), clearPat: jest.fn() });
     mockUseSourceControl.mockReturnValue({
       listFunctionRepos: jest.fn().mockResolvedValue([
         {
@@ -110,6 +123,7 @@ describe('FunctionsListPage', () => {
   });
 
   it('shows NotDeployed status for repos without cluster deployment', async () => {
+    mockUsePat.mockReturnValue({ pat: 'ghp_test', setPat: jest.fn(), clearPat: jest.fn() });
     mockUseSourceControl.mockReturnValue({
       listFunctionRepos: jest.fn().mockResolvedValue([
         {
@@ -135,6 +149,7 @@ describe('FunctionsListPage', () => {
   });
 
   it('renders empty state when GitHub API fails', async () => {
+    mockUsePat.mockReturnValue({ pat: 'ghp_test', setPat: jest.fn(), clearPat: jest.fn() });
     mockUseSourceControl.mockReturnValue({
       listFunctionRepos: jest.fn().mockRejectedValue(new Error('Requires authentication')),
       fetchFileContent: jest.fn(),
@@ -148,5 +163,39 @@ describe('FunctionsListPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'No functions found' })).toBeInTheDocument();
+  });
+
+  it('renders PatModal when PAT is empty', () => {
+    mockUsePat.mockReturnValue({ pat: '', setPat: jest.fn(), clearPat: jest.fn() });
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: jest.fn().mockResolvedValue([]),
+      fetchFileContent: jest.fn(),
+    });
+    mockUseClusterService.mockReturnValue({ deployments: [], loaded: true, error: null });
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('PatModal-open')).toBeInTheDocument();
+  });
+
+  it('does not render PatModal when PAT is set', () => {
+    mockUsePat.mockReturnValue({ pat: 'ghp_valid', setPat: jest.fn(), clearPat: jest.fn() });
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: jest.fn().mockResolvedValue([]),
+      fetchFileContent: jest.fn(),
+    });
+    mockUseClusterService.mockReturnValue({ deployments: [], loaded: true, error: null });
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText('PatModal-open')).not.toBeInTheDocument();
   });
 });

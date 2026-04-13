@@ -11,13 +11,17 @@ import { FunctionsEmptyState } from '../components/EmptyState';
 import { FunctionStatus, FunctionTable, FunctionTableItem } from '../components/FunctionTable';
 import { useSourceControl } from '../services/source-control/useSourceControl';
 import { useClusterService } from '../services/cluster/useClusterService';
+import { usePat } from '../hooks/usePat';
+import { PatModal } from '../components/PatModal';
 
 export default function FunctionsListPage() {
   const { t } = useTranslation('plugin__console-functions-plugin');
-  const { functions, loaded, onEdit } = useFunctionListPage();
+  const { pat, setPat } = usePat();
+  const { functions, loaded, onEdit } = useFunctionListPage(pat);
 
   return (
     <>
+      <PatModal isOpen={!pat} onSave={setPat} />
       <DocumentTitle>{t('Functions')}</DocumentTitle>
       <ListPageHeader title={t('Functions')} />
       <PageSection>
@@ -48,12 +52,12 @@ export default function FunctionsListPage() {
   );
 }
 
-function useFunctionListPage(): {
+function useFunctionListPage(pat: string): {
   functions: FunctionTableItem[];
   loaded: boolean;
   onEdit: (name: string) => void;
 } {
-  const sourceControl = useSourceControl('');
+  const sourceControl = useSourceControl(pat);
   const { deployments, loaded: clusterLoaded } = useClusterService();
   const navigate = useNavigate();
 
@@ -61,6 +65,11 @@ function useFunctionListPage(): {
   const [reposLoaded, setReposLoaded] = useState(false);
 
   useEffect(() => {
+    if (!pat) {
+      setReposLoaded(true);
+      return;
+    }
+
     let ignore = false;
 
     async function loadFunctionTableItems() {
@@ -86,7 +95,7 @@ function useFunctionListPage(): {
     return () => {
       ignore = true;
     };
-  }, [sourceControl]);
+  }, [sourceControl, pat]);
 
   const functions = useMemo(
     () =>
