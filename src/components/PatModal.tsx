@@ -46,7 +46,6 @@ export function PatModal({ isOpen, onSave }: PatModalProps) {
       isOpen
       variant="small"
       aria-label={t('GitHub Personal Access Token')}
-      onClose={() => {}}
     >
       <ModalHeader title={t('GitHub Personal Access Token')} />
       <ModalBody>
