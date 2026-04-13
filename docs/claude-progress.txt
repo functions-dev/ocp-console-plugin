@@ -2,6 +2,26 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-04-13 | Session: Session-Wide GitHub PAT
+Worked on: Replace build-time compiled GitHub PAT with runtime session-wide PAT (plan 004)
+Completed:
+- Design spec: brainstormed approaches, chose React hook + sessionStorage + PatModal, wrote spec to docs/design/
+- Implementation plan: 9-task bottom-up plan in docs/plans/active/004, executed via subagent-driven development
+- `usePat` hook (`src/hooks/usePat.ts`) backed by sessionStorage key `func-console-gh-pat`
+- `PatModal` component (`src/components/PatModal.tsx`) — non-dismissable PF6 modal, validates PAT via Octokit `GET /user`
+- `useSourceControl` refactored to accept `pat` parameter with `useMemo` (no more module-level singleton)
+- `FunctionsListPage` integrated: `usePat()` + `PatModal` gate, `useFunctionListPage(pat)` skips API when empty
+- `FunctionCreatePage` integrated: `usePat()` + `PatModal` gate, passes session PAT to `pushFiles()`
+- `CreateFunctionForm` PAT field removed (interface, state, validation, JSX)
+- `__GITHUB_PAT__` removed from webpack DefinePlugin and `src/globals.d.ts` deleted
+- i18n strings added, webpack build verified
+- 9 commits, 46 tests across 11 suites, all passing
+- Feature marked as passing in features.json, plan moved to completed/
+- feat: do not use login step for OCP internal registry in the generated function GH WF
+Left off: Feature complete. Ready for manual testing and PR.
+Blockers: None
+
+---
 ## 2026-04-02 | Session: Function Create Page
 Worked on: Full-stack Function Create Page feature (plan 003)
 Completed:
