@@ -11,7 +11,9 @@
   "Error creating function": "Error creating function",
   "Function Settings": "Function Settings",
   "Functions": "Functions",
+  "GitHub Personal Access Token": "GitHub Personal Access Token",
   "GitHub Settings": "GitHub Settings",
+  "Invalid token": "Invalid token",
   "Language": "Language",
   "Loading": "Loading",
   "Name": "Name",
@@ -24,6 +26,7 @@
   "Repository": "Repository",
   "Runtime": "Runtime",
   "Serverless functions in your repository and deployed to your cluster. Manage lifecycle, monitor status, and scale on demand.": "Serverless functions in your repository and deployed to your cluster. Manage lifecycle, monitor status, and scale on demand.",
+  "Save": "Save",
   "Status": "Status",
   "URL": "URL",
   "Undeploy": "Undeploy"
