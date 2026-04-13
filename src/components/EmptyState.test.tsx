@@ -21,7 +21,7 @@ describe('FunctionsEmptyState', () => {
     expect(screen.getByRole('heading', { name: 'No functions found' })).toBeInTheDocument();
   });
 
-  it('renders a "Create function" link pointing to /functions/create', () => {
+  it('renders a "Create function" link pointing to /functions2/create', () => {
     render(
       <MemoryRouter>
         <FunctionsEmptyState />
@@ -29,6 +29,6 @@ describe('FunctionsEmptyState', () => {
     );
 
     const link = screen.getByRole('link', { name: 'Create function' });
-    expect(link).toHaveAttribute('href', '/functions/create');
+    expect(link).toHaveAttribute('href', '/functions2/create');
   });
 });
