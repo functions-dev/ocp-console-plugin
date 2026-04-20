@@ -4,15 +4,46 @@ A Functions-as-a-Service PoC UI for the OpenShift Web Console. Developers create
 
 Built as an [OpenShift Console dynamic plugin](https://github.com/openshift/console/tree/main/frontend/packages/console-dynamic-plugin-sdk) using React, TypeScript, and PatternFly 6.
 
-## Prerequisites
+## Deployment on cluster
+
+### Prerequisites
+
+- [oc](https://console.redhat.com/openshift/downloads) CLI
+- An [OpenShift 4.19 cluster](https://console.redhat.com/openshift/create)
+
+### Quick install
+
+```shell
+oc new-project console-functions-plugin
+oc apply -f https://twogiants.github.io/func-console/plugin.yaml
+```
+
+### Manual install (requires [Helm](https://helm.sh))
+
+```shell
+oc new-project console-functions-plugin
+helm upgrade -i console-functions-plugin charts/openshift-console-plugin \
+    -n console-functions-plugin --create-namespace \
+    --set "plugin.image=ghcr.io/twogiants/console-functions-plugin:latest@sha256:<digest>"
+```
+
+To deploy a specific build, use its git commit SHA as the tag:
+
+```shell
+--set "plugin.image=ghcr.io/twogiants/console-functions-plugin:sha-<commit>"
+```
+
+Available image tags are listed in the [container registry](https://github.com/twoGiants/func-console/pkgs/container/console-functions-plugin). Consult the chart [values](charts/openshift-console-plugin/values.yaml) file for additional parameters.
+
+## Development
+
+### Prerequisites
 
 - [Node.js](https://nodejs.org/en/) (v18+)
 - [Yarn](https://yarnpkg.com) (v4)
 - [oc](https://console.redhat.com/openshift/downloads) CLI
 - [Docker](https://www.docker.com) or [podman 3.2.0+](https://podman.io)
 - An [OpenShift cluster](https://console.redhat.com/openshift/create)
-
-## Development
 
 ### Option 1: Local
 
@@ -92,28 +123,6 @@ push it to an image registry.
 NOTE: If you have a Mac with Apple silicon, you will need to add the flag
 `--platform=linux/amd64` when building the image to target the correct platform
 to run in-cluster.
-
-## Deployment on cluster
-
-A [Helm](https://helm.sh) chart is available to deploy the plugin to an OpenShift environment.
-
-The following Helm parameters are required:
-
-`plugin.image`: The location of the image containing the plugin that was previously pushed
-
-Additional parameters can be specified if desired. Consult the chart [values](charts/openshift-console-plugin/values.yaml) file for the full set of supported parameters.
-
-### Installing the Helm Chart
-
-Install the chart using the name of the plugin as the Helm release name into a new namespace or an existing namespace as specified by the `plugin.name` parameter and providing the location of the image within the `plugin.image` parameter by using the following command:
-
-```shell
-helm upgrade -i  my-plugin charts/openshift-console-plugin -n my-namespace --create-namespace --set plugin.image=my-plugin-image-location
-```
-
-NOTE: When deploying on OpenShift 4.10, it is recommended to add the parameter `--set plugin.securityContext.enabled=false` which will omit configurations related to Pod Security.
-
-NOTE: When defining i18n namespace, adhere `plugin__<name-of-the-plugin>` format. The name of the plugin should be extracted from the `consolePlugin` declaration within the [package.json](package.json) file.
 
 ## i18n
 

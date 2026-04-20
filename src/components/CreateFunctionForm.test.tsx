@@ -20,9 +20,7 @@ describe('CreateFunctionForm', () => {
   });
 
   it('renders all form fields', () => {
-    render(
-      <CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />,
-    );
+    render(<CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />);
 
     expect(screen.getByRole('textbox', { name: /Owner/ })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: /Repository/ })).toBeInTheDocument();
@@ -34,26 +32,20 @@ describe('CreateFunctionForm', () => {
   });
 
   it('renders Create and Cancel buttons', () => {
-    render(
-      <CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />,
-    );
+    render(<CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />);
 
     expect(screen.getByRole('button', { name: /Create/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Cancel/ })).toBeInTheDocument();
   });
 
   it('disables Create button when required fields are empty', () => {
-    render(
-      <CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />,
-    );
+    render(<CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />);
 
     expect(screen.getByRole('button', { name: /Create/ })).toBeDisabled();
   });
 
   it('disables Create button when isSubmitting is true', () => {
-    render(
-      <CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={true} />,
-    );
+    render(<CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={true} />);
 
     expect(screen.getByRole('button', { name: /Create/ })).toBeDisabled();
   });
@@ -61,9 +53,7 @@ describe('CreateFunctionForm', () => {
   it('calls onCancel when Cancel is clicked', async () => {
     const user = userEvent.setup();
 
-    render(
-      <CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />,
-    );
+    render(<CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />);
 
     await user.click(screen.getByRole('button', { name: /Cancel/ }));
     expect(onCancel).toHaveBeenCalled();
@@ -72,9 +62,7 @@ describe('CreateFunctionForm', () => {
   it('calls onSubmit with form data when form is filled and Create is clicked', async () => {
     const user = userEvent.setup();
 
-    render(
-      <CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />,
-    );
+    render(<CreateFunctionForm onSubmit={onSubmit} onCancel={onCancel} isSubmitting={false} />);
 
     await user.type(screen.getByRole('textbox', { name: /Owner/ }), 'testuser');
     await user.type(screen.getByRole('textbox', { name: /Repository/ }), 'my-repo');

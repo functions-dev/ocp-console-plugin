@@ -46,8 +46,6 @@ describe('FunctionBackendService', () => {
 
     const service = new FunctionBackendService();
 
-    await expect(service.generateFunction(config)).rejects.toThrow(
-      'failed to initialize function',
-    );
+    await expect(service.generateFunction(config)).rejects.toThrow('failed to initialize function');
   });
 });

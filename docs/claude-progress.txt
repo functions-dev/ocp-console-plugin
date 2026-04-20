@@ -2,6 +2,26 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-04-20 | Session: CI/CD pipeline and ESLint fixes
+Worked on: GitHub Actions CI/CD pipeline, ESLint config fixes, README restructure
+Completed:
+- Single CI workflow (ci.yml) with three jobs: checks (lint + test), build-image (multi-arch Docker build, no push), publish (build + push to GHCR, master only)
+- Multi-arch builds (amd64, arm64, ppc64le, s390x) via docker/setup-qemu-action + docker/setup-buildx-action, required for OCP
+- Build attestation signing via actions/attest-build-provenance, required for OCP
+- OCI annotations on image index (description, source, vendor, url), following knative/func patterns
+- Docker layer caching via GHA cache (build-image writes, publish reads)
+- Follows knative/func patterns: top-level permissions (id-token, contents, packages, attestations), concurrency groups, cancel-in-progress for PRs
+- Fixed ESLint config: removed redundant rule spreads in src/** block that re-enabled base no-unused-vars over @typescript-eslint/no-unused-vars (all 194 lint errors were config issues, not code issues)
+- Added Jest globals block for test files
+- Downgraded @console/pluginAPI shared dep to >=4.19.0
+- Restructured README: deployment section moved to top with OCP 4.19 prerequisite, GHCR registry link, separate prerequisites for deployment and development
+- Added hack/next-plan-number.sh for deterministic plan/branch numbering based on remote PR count
+- Updated WORKFLOW.md branching convention to use the helper script
+- 8 suites, 34 tests, all passing, zero lint errors
+Left off: PR #10 open. User needs to enable GITHUB_TOKEN write permissions in repo Settings and add branch protection rule for master.
+Blockers: None
+
+---
 ## 2026-04-17 | Session: FaaS route rename and nav restructure
 Worked on: Rename routes from /functions to /faas, restructure nav for both perspectives
 Completed:

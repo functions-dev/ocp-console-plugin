@@ -17,10 +17,7 @@ export function FunctionsEmptyState() {
       <EmptyStateBody>{t('Create a serverless function to get started.')}</EmptyStateBody>
       <EmptyStateFooter>
         <EmptyStateActions>
-          <Button
-            variant="primary"
-            component={(props) => <Link {...props} to="/faas/create" />}
-          >
+          <Button variant="primary" component={(props) => <Link {...props} to="/faas/create" />}>
             {t('Create function')}
           </Button>
         </EmptyStateActions>

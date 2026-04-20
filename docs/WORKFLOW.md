@@ -31,7 +31,7 @@ For each comment: read the full text and its diff hunk context, make the fix, th
 
 ## Branching
 
-Create a feature branch per plan: `<NNN>-<type>-<short-name>` where `<NNN>` matches the plan number and `<type>` the conventional commit type as per our [Git Commit Guide](references/commit-message-guide.md#conventional-commits). Example: `001-feat-function-list-empty-state`. If we're on a feature branch already do nothing.
+Create a feature branch per plan: `<NNN>-<type>-<short-name>` where `<NNN>` is determined by `./hack/next-plan-number.sh` (next PR number on the remote) and `<type>` is the conventional commit type as per our [Git Commit Guide](references/commit-message-guide.md#conventional-commits). The plan file uses the same number. Example: `010-feat-function-list-empty-state`. If we're on a feature branch already do nothing.
 
 ## Pull Requests
 

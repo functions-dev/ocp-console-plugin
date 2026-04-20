@@ -109,7 +109,9 @@
       "UserAvatar is clickable only on the Function List Page, clicking reopens PatModal to change the PAT and associated GitHub user",
       "On Create and Edit pages, UserAvatar displays the GitHub user but is not clickable (PAT cannot be changed from those pages)",
       "When PatModal is dismissed without a PAT, the Function List Page (both empty state and table view) shows a hint text directing the user to click 'Connect to GitHub' in the top-right corner to set a PAT",
-      "PAT change logic is encapsulated in a useUserAvatar custom hook following layered architecture (Hook imports Service, Component imports Hook)"
+      "PAT change logic is encapsulated in a useUserAvatar custom hook following layered architecture (Hook imports Service, Component imports Hook)",
+      "If the GH PAT is not set in the session then the Create button is inactive/disabled. The tooltiop of the button should say that PAT is required.",
+      "The GH PAT must not be compiled/hardcode into code at compile time."
     ],
     "passes": false
   },
@@ -122,6 +124,30 @@
       "Function List Page renders deployed functions even when no PAT has been entered (PatModal dismissed or not yet shown)",
       "When PAT is later provided, repo data from SourceControlService is merged with already-visible deployed functions",
       "Deployed functions without a matching repo still appear in the table with available cluster data (name, namespace, status, replicas, url)"
+    ],
+    "passes": false
+  },
+  {
+    "category": "technical",
+    "description": "CI/CD: GitHub Actions pipelines for PR checks and master publish to GHCR, plus lint fixes and README deployment instructions",
+    "steps": [
+      "PR pipeline (.github/workflows/pr.yml): triggers on pull_request to master, runs yarn install --immutable, yarn lint, yarn test — branch cannot merge without passing checks and an approval",
+      "Publish pipeline (.github/workflows/publish.yml): triggers on push to master (merged PRs), runs yarn install --immutable, yarn lint, yarn test, then builds multi-arch container image via docker/build-push-action using existing Dockerfile and pushes to ghcr.io/twogiants/console-functions-plugin with :latest and :sha-<commit> tags",
+      "Both pipelines use actions/setup-node@v4 with node-version 22, corepack enable, and cache: yarn for Yarn install caching (GitHub runners ship Node 20 by default with corepack disabled)",
+      "Both pipelines authenticate to GHCR using GITHUB_TOKEN secret with packages:write permission (token added to repo's Actions secrets)",
+      "Add yarn lint script to package.json if missing, run it, and fix all lint errors in the codebase",
+      "Update README.md deployment section (lines 96-117) — replace generic Helm boilerplate, placeholder commands, and obsolete OCP 4.10 / i18n notes with concrete instructions: oc new-project console-functions-plugin, helm upgrade -i console-functions-plugin charts/openshift-console-plugin -n console-functions-plugin --create-namespace --set plugin.image=ghcr.io/twogiants/console-functions-plugin:latest@sha256:<digest>"
+    ],
+    "passes": true
+  },
+  {
+    "category": "functional",
+    "description": "Set GitHub Secret (KUBECONFIG) on created function repos so GH Actions can deploy to the cluster",
+    "steps": [
+      "Add createSecret method to SourceControlService interface",
+      "Encrypt secret value with repo public key using tweetnacl or libsodium.js",
+      "Wire into create flow: after repo creation and file push, set KUBECONFIG secret on the repo",
+      "GH Actions workflow can authenticate to the cluster and run func deploy"
     ],
     "passes": false
   }
