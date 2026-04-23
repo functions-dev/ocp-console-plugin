@@ -103,7 +103,6 @@
       "PatModal opens automatically on first visit to Function List Page when no PAT is stored in session",
       "PatModal is dismissable — user can close it without entering a PAT",
       "PatModal validates the PAT against GitHub API and on success stores it in session and closes",
-      "SourceControlService interface extended with init(pat: string) and isInitialized(): boolean methods; GithubService implementation updated accordingly",
       "UserAvatar component renders inside ListPageHeader at the top-right corner on every page (list, create, edit)",
       "UserAvatar has two states: not initialized shows 'Connect to GitHub' with a key/lock icon (clickable, opens PatModal); initialized shows GitHub username with avatar icon",
       "UserAvatar is clickable only on the Function List Page, clicking reopens PatModal to change the PAT and associated GitHub user",
@@ -113,7 +112,7 @@
       "If the GH PAT is not set in the session then the Create button is inactive/disabled. The tooltiop of the button should say that PAT is required.",
       "The GH PAT must not be compiled/hardcode into code at compile time."
     ],
-    "passes": false
+    "passes": true
   },
   {
     "category": "functional",

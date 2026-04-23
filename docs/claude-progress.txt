@@ -2,6 +2,28 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-04-23 | Session: GitHub PAT Avatar feature
+Worked on: Runtime PAT entry via modal, validation, session storage, and user avatar display
+Completed:
+- Added GitHubUser type and validatePat() method to SourceControlService/GithubService
+- Created PatContext (React Context + Provider) with sessionStorage-backed state (ghPat, ghUser keys)
+- Rewrote useSourceControlService from compile-time singleton to context-driven hook (useMemo + usePatContext)
+- Created useUserAvatar hook encapsulating PAT validation/submission logic
+- Created PatModal component using PF6 composable Modal API (ModalHeader + ModalBody + ModalFooter)
+- Created UserAvatar component with connected/disconnected states and clickable prop
+- Created PageWrapper component wrapping children with PatProvider
+- Updated FunctionsEmptyState with isCreateDisabled prop and Tooltip on disabled button
+- Updated FunctionsListPage: PageWrapper, UserAvatar (clickable), PatModal auto-open, hint alert, disabled Create button
+- Updated FunctionCreatePage: PageWrapper, UserAvatar (non-clickable)
+- Updated FunctionEditPage: PageWrapper, UserAvatar (non-clickable)
+- Removed compile-time PAT injection (DefinePlugin from webpack.config.ts, __GITHUB_PAT__ from globals.d.ts)
+- Created plan file docs/plans/completed/011-feat-github-pat-avatar.md
+- Flipped "GitHub PAT Avatar" feature to passes: true in features.json
+- 12 suites, 65 tests, all passing, zero TypeScript errors
+Left off: Implementation complete. Manual browser test is user responsibility.
+Blockers: None
+
+---
 ## 2026-04-20 | Session: CI/CD pipeline and ESLint fixes
 Worked on: GitHub Actions CI/CD pipeline, ESLint config fixes, README restructure
 Completed:

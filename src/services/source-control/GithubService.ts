@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { FileEntry, RepoInfo, SourceRepo } from '../types';
+import { FileEntry, GitHubUser, RepoInfo, SourceRepo } from '../types';
 import { SourceControlService } from './SourceControlService';
 
 export class GithubService implements SourceControlService {
@@ -68,6 +68,11 @@ export class GithubService implements SourceControlService {
       ref: `refs/heads/${branch}`,
       sha: commit.sha,
     });
+  }
+
+  async validatePat(): Promise<GitHubUser> {
+    const { data: user } = await this.octokit.users.getAuthenticated();
+    return { login: user.login, avatarUrl: user.avatar_url };
   }
 
   async fetchFileContent(repo: SourceRepo, path: string): Promise<string> {

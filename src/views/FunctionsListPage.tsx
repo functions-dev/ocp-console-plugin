@@ -3,28 +3,81 @@ import {
   ListPageHeader,
   K8sResourceKind,
 } from '@openshift-console/dynamic-plugin-sdk';
-import { Button, Content, ContentVariants, PageSection, Spinner } from '@patternfly/react-core';
+import {
+  Alert,
+  Button,
+  Content,
+  ContentVariants,
+  PageSection,
+  Spinner,
+  Tooltip,
+} from '@patternfly/react-core';
 import { Link, useNavigate } from 'react-router-dom-v5-compat';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useMemo } from 'react';
 import { FunctionsEmptyState } from '../components/EmptyState';
 import { FunctionStatus, FunctionTable, FunctionTableItem } from '../components/FunctionTable';
+import { PageWrapper } from '../components/PageWrapper';
+import { PatModal } from '../components/PatModal';
+import { UserAvatar } from '../components/UserAvatar';
+import { usePatContext } from '../contexts/PatContext';
 import { useSourceControlService } from '../services/source-control/useSourceControlService';
 import { useClusterService } from '../services/cluster/useClusterService';
 
 export default function FunctionsListPage() {
+  return (
+    <PageWrapper>
+      <FunctionsListPageContent />
+    </PageWrapper>
+  );
+}
+
+function FunctionsListPageContent() {
   const { t } = useTranslation('plugin__console-functions-plugin');
+  const { pat } = usePatContext();
   const { functions, loaded, onEdit } = useFunctionListPage();
+
+  const [isPatModalOpen, setIsPatModalOpen] = useState(!pat);
+  const [showHint, setShowHint] = useState(false);
+
+  const handlePatModalClose = () => {
+    setIsPatModalOpen(false);
+    if (!pat) {
+      setShowHint(true);
+    }
+  };
+
+  const createButton = (
+    <Button
+      variant="primary"
+      isDisabled={!pat}
+      {...(pat && {
+        component: (props: React.ComponentProps<typeof Link>) => (
+          <Link {...props} to="/faas/create" />
+        ),
+      })}
+    >
+      {t('Create new function')}
+    </Button>
+  );
 
   return (
     <>
       <DocumentTitle>{t('Functions')}</DocumentTitle>
-      <ListPageHeader title={t('Functions')} />
+      <ListPageHeader title={t('Functions')}>
+        <UserAvatar clickable />
+      </ListPageHeader>
+      <PatModal isOpen={isPatModalOpen} onClose={handlePatModalClose} />
       <PageSection>
+        {showHint && !pat && (
+          <Alert variant="info" title={t('GitHub not connected')} isInline>
+            {t("Click 'Connect to GitHub' in the top-right corner to link your account.")}
+          </Alert>
+        )}
         {!loaded && (
           <Spinner aria-label={t('Loading')} style={{ display: 'block', margin: '4rem auto' }} />
         )}
-        {loaded && functions.length === 0 && <FunctionsEmptyState />}
+        {loaded && functions.length === 0 && <FunctionsEmptyState isCreateDisabled={!pat} />}
         {loaded && functions.length > 0 && (
           <>
             <Content component={ContentVariants.p}>
@@ -32,14 +85,15 @@ export default function FunctionsListPage() {
                 'Serverless functions in your repository and deployed to your cluster. Manage lifecycle, monitor status, and scale on demand.',
               )}
             </Content>
-            <Content component={ContentVariants.p}>
-              <Button
-                variant="primary"
-                component={(props) => <Link {...props} to="/faas/create" />}
-              >
-                {t('Create new function')}
-              </Button>
-            </Content>
+            <div style={{ marginBottom: '1rem' }}>
+              {!pat ? (
+                <Tooltip content={t('Connect to GitHub to create functions')}>
+                  <span>{createButton}</span>
+                </Tooltip>
+              ) : (
+                createButton
+              )}
+            </div>
             <FunctionTable functions={functions} onEdit={onEdit} />
           </>
         )}

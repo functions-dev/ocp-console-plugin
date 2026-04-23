@@ -31,4 +31,15 @@ describe('FunctionsEmptyState', () => {
     const link = screen.getByRole('link', { name: 'Create function' });
     expect(link).toHaveAttribute('href', '/faas/create');
   });
+
+  it('disables Create button when isCreateDisabled is true', () => {
+    render(
+      <MemoryRouter>
+        <FunctionsEmptyState isCreateDisabled />
+      </MemoryRouter>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Create function' });
+    expect(button).toBeDisabled();
+  });
 });

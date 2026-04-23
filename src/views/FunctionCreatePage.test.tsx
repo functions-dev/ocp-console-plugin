@@ -13,7 +13,28 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   DocumentTitle: ({ children }: { children: string }) => children,
-  ListPageHeader: ({ title }: { title: string }) => title,
+  ListPageHeader: ({ title, children }: { title: string; children?: React.ReactNode }) => (
+    <>
+      {title}
+      {children}
+    </>
+  ),
+}));
+
+jest.mock('../contexts/PatContext', () => ({
+  PatProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  usePatContext: () => ({
+    pat: 'ghp_test',
+    user: { login: 'twoGiants', avatarUrl: 'https://avatar' },
+    setPat: jest.fn(),
+    clearPat: jest.fn(),
+  }),
+}));
+
+jest.mock('../components/UserAvatar', () => ({
+  UserAvatar: ({ clickable }: { clickable: boolean }) => (
+    <div data-testid="user-avatar" data-clickable={clickable} />
+  ),
 }));
 
 jest.mock('../services/function/useFunctionService', () => ({
@@ -46,6 +67,17 @@ const fillForm = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe('FunctionCreatePage', () => {
+  it('renders UserAvatar as non-clickable', () => {
+    render(
+      <MemoryRouter>
+        <FunctionCreatePage />
+      </MemoryRouter>,
+    );
+
+    const avatar = screen.getByTestId('user-avatar');
+    expect(avatar).toHaveAttribute('data-clickable', 'false');
+  });
+
   it('renders CreateFunctionForm', () => {
     render(
       <MemoryRouter>

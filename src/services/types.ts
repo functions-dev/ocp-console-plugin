@@ -27,3 +27,8 @@ export interface SourceRepo {
   url: string;
   defaultBranch: string;
 }
+
+export interface GitHubUser {
+  login: string;
+  avatarUrl: string;
+}

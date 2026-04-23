@@ -1,6 +1,7 @@
 import { GithubService } from './GithubService';
 import { FileEntry, RepoInfo, SourceRepo } from '../types';
 
+const mockGetAuthenticated = jest.fn();
 const mockSearch = jest.fn();
 const mockGetContent = jest.fn();
 const mockCreateBlob = jest.fn();
@@ -10,7 +11,7 @@ const mockCreateRef = jest.fn();
 
 jest.mock('@octokit/rest', () => ({
   Octokit: jest.fn().mockImplementation(() => ({
-    users: { getAuthenticated: jest.fn().mockResolvedValue({ data: { login: 'twoGiants' } }) },
+    users: { getAuthenticated: mockGetAuthenticated },
     search: { repos: mockSearch },
     repos: { getContent: mockGetContent },
     git: {
@@ -28,6 +29,9 @@ afterEach(() => {
 
 describe('GithubService', () => {
   it('lists function repos tagged with serverless-function topic', async () => {
+    mockGetAuthenticated.mockResolvedValue({
+      data: { login: 'twoGiants', avatar_url: 'https://avatars.githubusercontent.com/twoGiants' },
+    });
     mockSearch.mockResolvedValue({
       data: {
         items: [
@@ -129,6 +133,30 @@ describe('GithubService', () => {
       await expect(svc.push(repoInfo, files, 'Initialize function')).rejects.toThrow(
         'Validation Failed',
       );
+    });
+  });
+
+  describe('validatePat', () => {
+    it('returns GitHubUser on valid PAT', async () => {
+      mockGetAuthenticated.mockResolvedValue({
+        data: { login: 'twoGiants', avatar_url: 'https://avatars.githubusercontent.com/twoGiants' },
+      });
+
+      const svc = new GithubService('valid-token');
+      const user = await svc.validatePat();
+
+      expect(user).toEqual({
+        login: 'twoGiants',
+        avatarUrl: 'https://avatars.githubusercontent.com/twoGiants',
+      });
+    });
+
+    it('throws on invalid PAT', async () => {
+      mockGetAuthenticated.mockRejectedValue(new Error('Bad credentials'));
+
+      const svc = new GithubService('invalid-token');
+
+      await expect(svc.validatePat()).rejects.toThrow('Bad credentials');
     });
   });
 });
