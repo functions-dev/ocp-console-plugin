@@ -4,17 +4,29 @@ import { Alert, PageSection } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom-v5-compat';
 import { CreateFunctionForm, CreateFunctionFormData } from '../components/CreateFunctionForm';
+import { PatProvider } from '../components/PatProvider';
+import { UserAvatar } from '../components/UserAvatar';
 import { useFunctionService } from '../services/function/useFunctionService';
 import { useSourceControlService } from '../services/source-control/useSourceControlService';
 
 export default function FunctionCreatePage() {
+  return (
+    <PatProvider>
+      <FunctionCreatePageContent />
+    </PatProvider>
+  );
+}
+
+function FunctionCreatePageContent() {
   const { t } = useTranslation('plugin__console-functions-plugin');
   const { isSubmitting, error, handleSubmit, handleCancel } = useFunctionCreatePage();
 
   return (
     <>
       <DocumentTitle>{t('Create function')}</DocumentTitle>
-      <ListPageHeader title={t('Create function')} />
+      <ListPageHeader title={t('Create function')}>
+        <UserAvatar />
+      </ListPageHeader>
       <PageSection>
         {error && (
           <Alert variant="danger" title={t('Error creating function')} isInline>

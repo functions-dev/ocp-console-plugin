@@ -1,6 +1,7 @@
 import { GithubService } from './GithubService';
 import { FileEntry, RepoInfo, SourceRepo } from '../types';
 
+const mockGetAuthenticated = jest.fn().mockResolvedValue({ data: { login: 'twoGiants' } });
 const mockSearch = jest.fn();
 const mockGetContent = jest.fn();
 const mockCreateBlob = jest.fn();
@@ -10,7 +11,7 @@ const mockCreateRef = jest.fn();
 
 jest.mock('@octokit/rest', () => ({
   Octokit: jest.fn().mockImplementation(() => ({
-    users: { getAuthenticated: jest.fn().mockResolvedValue({ data: { login: 'twoGiants' } }) },
+    users: { getAuthenticated: mockGetAuthenticated },
     search: { repos: mockSearch },
     repos: { getContent: mockGetContent },
     git: {
@@ -27,6 +28,23 @@ afterEach(() => {
 });
 
 describe('GithubService', () => {
+  it('isInitialized returns false before init', () => {
+    const svc = new GithubService();
+    expect(svc.isInitialized()).toBe(false);
+  });
+
+  it('init validates PAT and returns username', async () => {
+    const svc = new GithubService();
+    const username = await svc.init('fake-token');
+    expect(username).toBe('twoGiants');
+    expect(svc.isInitialized()).toBe(true);
+  });
+
+  it('throws when calling listFunctionRepos before init', async () => {
+    const svc = new GithubService();
+    await expect(svc.listFunctionRepos()).rejects.toThrow('Service not initialized');
+  });
+
   it('lists function repos tagged with serverless-function topic', async () => {
     mockSearch.mockResolvedValue({
       data: {
@@ -41,7 +59,8 @@ describe('GithubService', () => {
       },
     });
 
-    const svc = new GithubService('fake-token');
+    const svc = new GithubService();
+    await svc.init('fake-token');
     const repos: SourceRepo[] = await svc.listFunctionRepos();
 
     expect(repos).toEqual([
@@ -60,7 +79,8 @@ describe('GithubService', () => {
       data: { content: btoa('name: my-func\nruntime: go\n'), encoding: 'base64' },
     });
 
-    const svc = new GithubService('fake-token');
+    const svc = new GithubService();
+    await svc.init('fake-token');
     const content = await svc.fetchFileContent(
       {
         owner: 'twoGiants',
@@ -93,7 +113,8 @@ describe('GithubService', () => {
     });
 
     it('creates an initial commit with the provided files', async () => {
-      const svc = new GithubService('fake-token');
+      const svc = new GithubService();
+      await svc.init('fake-token');
       await svc.push(repoInfo, files, 'Initialize function');
 
       expect(mockCreateBlob).toHaveBeenCalledWith({
@@ -124,7 +145,8 @@ describe('GithubService', () => {
 
     it('propagates errors from intermediate API calls', async () => {
       mockCreateTree.mockRejectedValue(new Error('Validation Failed'));
-      const svc = new GithubService('fake-token');
+      const svc = new GithubService();
+      await svc.init('fake-token');
 
       await expect(svc.push(repoInfo, files, 'Initialize function')).rejects.toThrow(
         'Validation Failed',

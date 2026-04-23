@@ -2,6 +2,20 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-04-23 | Session: GitHub PAT Avatar (continued)
+Worked on: Fix disabled Create button in EmptyState, design spec and plan docs
+Completed:
+- Fixed EmptyState Create button to be disabled with tooltip when not connected
+- Fixed EmptyState test teardown (restoreAllMocks -> clearAllMocks) to preserve mock state between tests
+- Added test for disabled button state
+- Updated existing link test to explicitly set isConnected: true
+- Wrote design spec (docs/superpowers/specs/2026-04-21-github-pat-avatar-design.md)
+- Wrote implementation plan (docs/superpowers/plans/2026-04-21-github-pat-avatar.md)
+- Updated features.json with disabled button and no-compile-time-PAT steps
+Left off: Tests need manual verification (yarn test blocked by sandbox). Full PAT Avatar implementation done across 9 prior commits on feat/github-pat-avatar branch.
+Blockers: None
+
+---
 ## 2026-04-17 | Session: FaaS route rename and nav restructure
 Worked on: Rename routes from /functions to /faas, restructure nav for both perspectives
 Completed:

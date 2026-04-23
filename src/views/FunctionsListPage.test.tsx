@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom-v5-compat';
 import FunctionsListPage from './FunctionsListPage';
+import { usePatContext } from '../hooks/usePatContext';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -14,6 +15,33 @@ jest.mock('@openshift-console/dynamic-plugin-sdk', () => ({
       {children}
     </>
   ),
+}));
+
+jest.mock('../hooks/usePatContext', () => ({
+  usePatContext: jest.fn().mockReturnValue({
+    isConnected: true,
+    username: 'twoGiants',
+    isModalOpen: false,
+    openModal: jest.fn(),
+    closeModal: jest.fn(),
+    submitPat: jest.fn(),
+    error: null,
+  }),
+}));
+
+const mockOpenModal = jest.fn();
+
+jest.mock('../components/PatProvider', () => ({
+  PatProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  MODAL_SHOWN_KEY: 'faas-gh-pat-modal-shown',
+}));
+
+jest.mock('../components/PatModal', () => ({
+  PatModal: () => null,
+}));
+
+jest.mock('../components/UserAvatar', () => ({
+  UserAvatar: () => null,
 }));
 
 const mockUseSourceControl = jest.fn();
@@ -33,14 +61,33 @@ jest.mock('../components/FunctionTable', () => ({
 
 afterEach(() => {
   jest.restoreAllMocks();
+  sessionStorage.clear();
+  // Reset usePatContext to connected state (default for most tests)
+  (usePatContext as jest.Mock).mockReturnValue({
+    isConnected: true,
+    username: 'twoGiants',
+    isModalOpen: false,
+    openModal: mockOpenModal,
+    closeModal: jest.fn(),
+    submitPat: jest.fn(),
+    error: null,
+  });
+  mockOpenModal.mockClear();
 });
+
+function defaultSourceControl() {
+  return {
+    init: jest.fn(),
+    isInitialized: jest.fn().mockReturnValue(true),
+    listFunctionRepos: jest.fn().mockResolvedValue([]),
+    fetchFileContent: jest.fn(),
+    push: jest.fn(),
+  };
+}
 
 describe('FunctionsListPage', () => {
   it('renders a spinner while loading', () => {
-    mockUseSourceControl.mockReturnValue({
-      listFunctionRepos: jest.fn().mockResolvedValue([]),
-      fetchFileContent: jest.fn(),
-    });
+    mockUseSourceControl.mockReturnValue(defaultSourceControl());
     mockUseClusterService.mockReturnValue({ deployments: [], loaded: false, error: null });
 
     render(
@@ -53,10 +100,7 @@ describe('FunctionsListPage', () => {
   });
 
   it('renders the empty state when loaded with no functions', async () => {
-    mockUseSourceControl.mockReturnValue({
-      listFunctionRepos: jest.fn().mockResolvedValue([]),
-      fetchFileContent: jest.fn(),
-    });
+    mockUseSourceControl.mockReturnValue(defaultSourceControl());
     mockUseClusterService.mockReturnValue({ deployments: [], loaded: true, error: null });
 
     render(
@@ -70,6 +114,7 @@ describe('FunctionsListPage', () => {
 
   it('renders table when functions are loaded', async () => {
     mockUseSourceControl.mockReturnValue({
+      ...defaultSourceControl(),
       listFunctionRepos: jest.fn().mockResolvedValue([
         {
           owner: 'twoGiants',
@@ -111,6 +156,7 @@ describe('FunctionsListPage', () => {
 
   it('shows NotDeployed status for repos without cluster deployment', async () => {
     mockUseSourceControl.mockReturnValue({
+      ...defaultSourceControl(),
       listFunctionRepos: jest.fn().mockResolvedValue([
         {
           owner: 'twoGiants',
@@ -136,8 +182,8 @@ describe('FunctionsListPage', () => {
 
   it('renders empty state when GitHub API fails', async () => {
     mockUseSourceControl.mockReturnValue({
+      ...defaultSourceControl(),
       listFunctionRepos: jest.fn().mockRejectedValue(new Error('Requires authentication')),
-      fetchFileContent: jest.fn(),
     });
     mockUseClusterService.mockReturnValue({ deployments: [], loaded: true, error: null });
 
@@ -148,5 +194,50 @@ describe('FunctionsListPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'No functions found' })).toBeInTheDocument();
+  });
+
+  it('auto-opens modal on first visit when not connected', () => {
+    (usePatContext as jest.Mock).mockReturnValue({
+      isConnected: false,
+      username: null,
+      isModalOpen: false,
+      openModal: mockOpenModal,
+      closeModal: jest.fn(),
+      submitPat: jest.fn(),
+      error: null,
+    });
+    mockUseSourceControl.mockReturnValue(defaultSourceControl());
+    mockUseClusterService.mockReturnValue({ deployments: [], loaded: true, error: null });
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    expect(mockOpenModal).toHaveBeenCalled();
+  });
+
+  it('does not auto-open modal when modal-shown flag is set', () => {
+    (usePatContext as jest.Mock).mockReturnValue({
+      isConnected: false,
+      username: null,
+      isModalOpen: false,
+      openModal: mockOpenModal,
+      closeModal: jest.fn(),
+      submitPat: jest.fn(),
+      error: null,
+    });
+    sessionStorage.setItem('faas-gh-pat-modal-shown', 'true');
+    mockUseSourceControl.mockReturnValue(defaultSourceControl());
+    mockUseClusterService.mockReturnValue({ deployments: [], loaded: true, error: null });
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    expect(mockOpenModal).not.toHaveBeenCalled();
   });
 });

@@ -3,23 +3,45 @@ import {
   ListPageHeader,
   K8sResourceKind,
 } from '@openshift-console/dynamic-plugin-sdk';
-import { Button, Content, ContentVariants, PageSection, Spinner } from '@patternfly/react-core';
+import { Button, Content, ContentVariants, PageSection, Spinner, Tooltip } from '@patternfly/react-core';
 import { Link, useNavigate } from 'react-router-dom-v5-compat';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState, useMemo } from 'react';
 import { FunctionsEmptyState } from '../components/EmptyState';
 import { FunctionStatus, FunctionTable, FunctionTableItem } from '../components/FunctionTable';
+import { PatProvider, MODAL_SHOWN_KEY } from '../components/PatProvider';
+import { PatModal } from '../components/PatModal';
+import { UserAvatar } from '../components/UserAvatar';
+import { usePatContext } from '../hooks/usePatContext';
 import { useSourceControlService } from '../services/source-control/useSourceControlService';
 import { useClusterService } from '../services/cluster/useClusterService';
 
 export default function FunctionsListPage() {
+  return (
+    <PatProvider>
+      <FunctionsListPageContent />
+    </PatProvider>
+  );
+}
+
+function FunctionsListPageContent() {
   const { t } = useTranslation('plugin__console-functions-plugin');
-  const { functions, loaded, onEdit } = useFunctionListPage();
+  const { isConnected, openModal } = usePatContext();
+  const { functions, loaded, onEdit } = useFunctionListPage(isConnected);
+
+  useEffect(() => {
+    if (!isConnected && !sessionStorage.getItem(MODAL_SHOWN_KEY)) {
+      openModal();
+    }
+  }, [isConnected, openModal]);
 
   return (
     <>
       <DocumentTitle>{t('Functions')}</DocumentTitle>
-      <ListPageHeader title={t('Functions')} />
+      <ListPageHeader title={t('Functions')}>
+        <UserAvatar clickable />
+      </ListPageHeader>
+      <PatModal />
       <PageSection>
         {!loaded && (
           <Spinner aria-label={t('Loading')} style={{ display: 'block', margin: '4rem auto' }} />
@@ -33,13 +55,28 @@ export default function FunctionsListPage() {
               )}
             </Content>
             <Content component={ContentVariants.p}>
-              <Button
-                variant="primary"
-                component={(props) => <Link {...props} to="/faas/create" />}
-              >
-                {t('Create new function')}
-              </Button>
+              {isConnected ? (
+                <Button
+                  variant="primary"
+                  component={(props) => <Link {...props} to="/faas/create" />}
+                >
+                  {t('Create new function')}
+                </Button>
+              ) : (
+                <Tooltip content={t('Connect to GitHub to create functions')}>
+                  <Button variant="primary" isDisabled>
+                    {t('Create new function')}
+                  </Button>
+                </Tooltip>
+              )}
             </Content>
+            {!isConnected && (
+              <Content component={ContentVariants.p}>
+                {t(
+                  'Connect to GitHub using the button in the top-right corner to see your functions.',
+                )}
+              </Content>
+            )}
             <FunctionTable functions={functions} onEdit={onEdit} />
           </>
         )}
@@ -48,7 +85,7 @@ export default function FunctionsListPage() {
   );
 }
 
-function useFunctionListPage(): {
+function useFunctionListPage(isConnected: boolean): {
   functions: FunctionTableItem[];
   loaded: boolean;
   onEdit: (name: string) => void;
@@ -61,6 +98,12 @@ function useFunctionListPage(): {
   const [reposLoaded, setReposLoaded] = useState(false);
 
   useEffect(() => {
+    if (!isConnected) {
+      setFunctionItems([]);
+      setReposLoaded(true);
+      return;
+    }
+
     let ignore = false;
 
     async function loadFunctionTableItems() {
@@ -86,7 +129,7 @@ function useFunctionListPage(): {
     return () => {
       ignore = true;
     };
-  }, [sourceControl]);
+  }, [sourceControl, isConnected]);
 
   const functions = useMemo(
     () =>

@@ -13,7 +13,12 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   DocumentTitle: ({ children }: { children: string }) => children,
-  ListPageHeader: ({ title }: { title: string }) => title,
+  ListPageHeader: ({ title, children }: { title: string; children?: React.ReactNode }) => (
+    <>
+      {title}
+      {children}
+    </>
+  ),
 }));
 
 jest.mock('../services/function/useFunctionService', () => ({
@@ -30,6 +35,26 @@ jest.mock('../services/source-control/useSourceControlService', () => ({
 
 jest.mock('react-router-dom-v5-compat', () => ({
   useNavigate: () => mockNavigate,
+}));
+
+jest.mock('../hooks/usePatContext', () => ({
+  usePatContext: jest.fn().mockReturnValue({
+    isConnected: true,
+    username: 'twoGiants',
+    isModalOpen: false,
+    openModal: jest.fn(),
+    closeModal: jest.fn(),
+    submitPat: jest.fn(),
+    error: null,
+  }),
+}));
+
+jest.mock('../components/PatProvider', () => ({
+  PatProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+jest.mock('../components/UserAvatar', () => ({
+  UserAvatar: () => null,
 }));
 
 afterEach(() => {

@@ -2,15 +2,27 @@ import { DocumentTitle, ListPageHeader } from '@openshift-console/dynamic-plugin
 import { PageSection } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom-v5-compat';
+import { PatProvider } from '../components/PatProvider';
+import { UserAvatar } from '../components/UserAvatar';
 
 export default function FunctionEditPage() {
+  return (
+    <PatProvider>
+      <FunctionEditPageContent />
+    </PatProvider>
+  );
+}
+
+function FunctionEditPageContent() {
   const { t } = useTranslation('plugin__console-functions-plugin');
   const { name } = useParams<{ name: string }>();
 
   return (
     <>
       <DocumentTitle>{t('Edit function')}</DocumentTitle>
-      <ListPageHeader title={`${t('Edit function')}: ${name}`} />
+      <ListPageHeader title={`${t('Edit function')}: ${name}`}>
+        <UserAvatar />
+      </ListPageHeader>
       <PageSection>{t('Coming soon.')}</PageSection>
     </>
   );

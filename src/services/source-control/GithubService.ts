@@ -3,20 +3,31 @@ import { FileEntry, RepoInfo, SourceRepo } from '../types';
 import { SourceControlService } from './SourceControlService';
 
 export class GithubService implements SourceControlService {
-  private octokit: Octokit;
+  private octokit: Octokit | undefined;
   private username: string | undefined;
 
-  constructor(pat: string) {
+  async init(pat: string): Promise<string> {
     this.octokit = new Octokit({ auth: pat });
+    const { data: user } = await this.octokit.users.getAuthenticated();
+    this.username = user.login;
+    return this.username;
+  }
+
+  isInitialized(): boolean {
+    return this.octokit !== undefined;
+  }
+
+  private requireInit(): Octokit {
+    if (!this.octokit) {
+      throw new Error('Service not initialized. Call init(pat) first.');
+    }
+    return this.octokit;
   }
 
   async listFunctionRepos(): Promise<SourceRepo[]> {
-    if (!this.username) {
-      const { data: user } = await this.octokit.users.getAuthenticated();
-      this.username = user.login;
-    }
+    const octokit = this.requireInit();
 
-    const { data } = await this.octokit.search.repos({
+    const { data } = await octokit.search.repos({
       q: `topic:serverless-function user:${this.username}`,
     });
 
@@ -29,11 +40,12 @@ export class GithubService implements SourceControlService {
   }
 
   async push(repo: RepoInfo, files: FileEntry[], message: string): Promise<void> {
+    const octokit = this.requireInit();
     const { owner, repo: repoName, branch } = repo;
 
     const treeEntries = await Promise.all(
       files.map(async (file) => {
-        const { data: blob } = await this.octokit.git.createBlob({
+        const { data: blob } = await octokit.git.createBlob({
           owner,
           repo: repoName,
           content: file.content,
@@ -48,13 +60,13 @@ export class GithubService implements SourceControlService {
       }),
     );
 
-    const { data: tree } = await this.octokit.git.createTree({
+    const { data: tree } = await octokit.git.createTree({
       owner,
       repo: repoName,
       tree: treeEntries,
     });
 
-    const { data: commit } = await this.octokit.git.createCommit({
+    const { data: commit } = await octokit.git.createCommit({
       owner,
       repo: repoName,
       message,
@@ -62,7 +74,7 @@ export class GithubService implements SourceControlService {
       parents: [],
     });
 
-    await this.octokit.git.createRef({
+    await octokit.git.createRef({
       owner,
       repo: repoName,
       ref: `refs/heads/${branch}`,
@@ -71,7 +83,9 @@ export class GithubService implements SourceControlService {
   }
 
   async fetchFileContent(repo: SourceRepo, path: string): Promise<string> {
-    const { data } = await this.octokit.repos.getContent({
+    const octokit = this.requireInit();
+
+    const { data } = await octokit.repos.getContent({
       owner: repo.owner,
       repo: repo.name,
       path,
