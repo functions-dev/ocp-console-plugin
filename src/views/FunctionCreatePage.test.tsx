@@ -7,7 +7,7 @@ import { PAT_KEY, USER_KEY } from '../services/types';
 const mockGenerateFunction = vi.fn();
 const mockCreateRepo = vi.fn();
 const mockCreateSecret = vi.fn();
-const mockGetKubeconfig = vi.fn();
+const mockGenerateKubeconfig = vi.fn();
 const mockNavigate = vi.fn();
 
 vi.mock('react-i18next', () => ({
@@ -37,8 +37,13 @@ vi.mock('../services/source-control/useSourceControlService', () => ({
   }),
 }));
 
-vi.mock('../services/cluster/useClusterCredentialService', () => ({
-  useClusterCredentialService: () => ({ getKubeconfig: mockGetKubeconfig }),
+vi.mock('../services/cluster/useClusterService', () => ({
+  useClusterService: () => ({
+    deployments: [],
+    loaded: true,
+    error: undefined,
+    generateKubeconfig: mockGenerateKubeconfig,
+  }),
 }));
 
 vi.mock('react-router-dom-v5-compat', () => ({
@@ -94,7 +99,7 @@ describe('FunctionCreatePage', () => {
     const files = [{ path: 'func.yaml', mode: '100644', content: 'name: f', type: 'blob' }];
     mockGenerateFunction.mockResolvedValue(files);
     mockCreateRepo.mockResolvedValue(undefined);
-    mockGetKubeconfig.mockResolvedValue('kubeconfig-yaml');
+    mockGenerateKubeconfig.mockResolvedValue('kubeconfig-yaml');
     mockCreateSecret.mockResolvedValue(undefined);
 
     renderPage();
@@ -113,7 +118,7 @@ describe('FunctionCreatePage', () => {
     });
 
     await waitFor(() => {
-      expect(mockGetKubeconfig).toHaveBeenCalledWith('default');
+      expect(mockGenerateKubeconfig).toHaveBeenCalledWith('default');
     });
 
     await waitFor(() => {

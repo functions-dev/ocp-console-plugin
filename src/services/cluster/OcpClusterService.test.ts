@@ -1,4 +1,4 @@
-import { OcpClusterCredentialService } from './OcpClusterCredentialService';
+import { OcpClusterService } from './OcpClusterService';
 
 const mockGet = vi.fn();
 const mockPost = vi.fn();
@@ -20,7 +20,7 @@ afterEach(() => {
   delete (window as unknown as Record<string, unknown>).SERVER_FLAGS;
 });
 
-describe('OcpClusterCredentialService', () => {
+describe('OcpClusterService', () => {
   const namespace = 'my-ns';
 
   beforeEach(() => {
@@ -39,8 +39,8 @@ describe('OcpClusterCredentialService', () => {
   });
 
   it('creates SA, Role, RoleBinding, gets token, and returns kubeconfig', async () => {
-    const svc = new OcpClusterCredentialService();
-    const kubeconfig = await svc.getKubeconfig(namespace);
+    const svc = new OcpClusterService();
+    const kubeconfig = await svc.generateKubeconfig(namespace);
 
     // Verify SA creation
     expect(mockPost).toHaveBeenCalledWith(
@@ -113,8 +113,8 @@ describe('OcpClusterCredentialService', () => {
       .mockRejectedValueOnce(conflict) // ImageBuilderBinding already exists
       .mockResolvedValueOnce({ status: { token: 'sa-token-value' } }); // TokenRequest
 
-    const svc = new OcpClusterCredentialService();
-    const kubeconfig = await svc.getKubeconfig(namespace);
+    const svc = new OcpClusterService();
+    const kubeconfig = await svc.generateKubeconfig(namespace);
 
     expect(JSON.parse(kubeconfig).users[0].user.token).toBe('sa-token-value');
   });
@@ -130,8 +130,8 @@ describe('OcpClusterCredentialService', () => {
       .mockRejectedValueOnce(k8sConflict)
       .mockResolvedValueOnce({ status: { token: 'sa-token-value' } });
 
-    const svc = new OcpClusterCredentialService();
-    const kubeconfig = await svc.getKubeconfig(namespace);
+    const svc = new OcpClusterService();
+    const kubeconfig = await svc.generateKubeconfig(namespace);
 
     expect(JSON.parse(kubeconfig).users[0].user.token).toBe('sa-token-value');
   });
@@ -141,15 +141,15 @@ describe('OcpClusterCredentialService', () => {
 
     mockPost.mockReset().mockRejectedValueOnce(forbidden);
 
-    const svc = new OcpClusterCredentialService();
-    await expect(svc.getKubeconfig(namespace)).rejects.toThrow('Forbidden');
+    const svc = new OcpClusterService();
+    await expect(svc.generateKubeconfig(namespace)).rejects.toThrow('Forbidden');
   });
 
   it('throws when SERVER_FLAGS is missing', async () => {
     delete (window as unknown as Record<string, unknown>).SERVER_FLAGS;
 
-    const svc = new OcpClusterCredentialService();
-    await expect(svc.getKubeconfig(namespace)).rejects.toThrow(
+    const svc = new OcpClusterService();
+    await expect(svc.generateKubeconfig(namespace)).rejects.toThrow(
       'Cannot determine API server URL from console',
     );
   });

@@ -1,28 +1,33 @@
 import { consoleFetchJSON } from '@openshift-console/dynamic-plugin-sdk';
-import { ClusterCredentialService } from './ClusterCredentialService';
 
 const SA_NAME = 'func-github';
 const ROLE_NAME = 'func-github-deployer';
 const TOKEN_EXPIRY_SECONDS = 31536000; // 1 year; token rotation is not yet implemented
 
-export class OcpClusterCredentialService implements ClusterCredentialService {
-  async getKubeconfig(namespace: string): Promise<string> {
-    await this.createServiceAccount(namespace);
-    await this.createRole(namespace);
-    await this.createRoleBinding(namespace);
-    await this.createImageBuilderBinding(namespace);
+export class OcpClusterService {
+  /**
+   * Generates a kubeconfig for GitHub Actions CI/CD so the workflow runner
+   * can authenticate to the cluster and run func deploy. Creates the
+   * necessary ServiceAccount, Role, and RoleBindings in the target
+   * namespace if they do not already exist.
+   */
+  async generateKubeconfig(namespace: string): Promise<string> {
+    await this.#createServiceAccount(namespace);
+    await this.#createRole(namespace);
+    await this.#createRoleBinding(namespace);
+    await this.#createImageBuilderBinding(namespace);
 
     const [token, caCert] = await Promise.all([
-      this.requestToken(namespace),
-      this.getCACert(namespace),
+      this.#requestToken(namespace),
+      this.#getCACert(namespace),
     ]);
-    const apiServerURL = this.getApiServerURL();
+    const apiServerURL = this.#getApiServerURL();
 
-    return this.buildKubeconfig(apiServerURL, caCert, token, namespace);
+    return this.#buildKubeconfig(apiServerURL, caCert, token, namespace);
   }
 
-  private async createServiceAccount(namespace: string): Promise<void> {
-    await this.createIgnoringConflict(
+  async #createServiceAccount(namespace: string): Promise<void> {
+    await this.#createIgnoringConflict(
       `/api/kubernetes/api/v1/namespaces/${namespace}/serviceaccounts`,
       {
         apiVersion: 'v1',
@@ -32,8 +37,8 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     );
   }
 
-  private async createRole(namespace: string): Promise<void> {
-    await this.createIgnoringConflict(
+  async #createRole(namespace: string): Promise<void> {
+    await this.#createIgnoringConflict(
       `/api/kubernetes/apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/roles`,
       {
         apiVersion: 'rbac.authorization.k8s.io/v1',
@@ -42,12 +47,7 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
         rules: [
           {
             apiGroups: [''],
-            resources: [
-              'pods',
-              'pods/exec',
-              'services',
-              'configmaps',
-            ],
+            resources: ['pods', 'pods/exec', 'services', 'configmaps'],
             verbs: ['get', 'list', 'watch', 'create', 'update', 'patch', 'delete'],
           },
           {
@@ -70,8 +70,8 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     );
   }
 
-  private async createRoleBinding(namespace: string): Promise<void> {
-    await this.createIgnoringConflict(
+  async #createRoleBinding(namespace: string): Promise<void> {
+    await this.#createIgnoringConflict(
       `/api/kubernetes/apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/rolebindings`,
       {
         apiVersion: 'rbac.authorization.k8s.io/v1',
@@ -87,8 +87,8 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     );
   }
 
-  private async createImageBuilderBinding(namespace: string): Promise<void> {
-    await this.createIgnoringConflict(
+  async #createImageBuilderBinding(namespace: string): Promise<void> {
+    await this.#createIgnoringConflict(
       `/api/kubernetes/apis/rbac.authorization.k8s.io/v1/namespaces/${namespace}/rolebindings`,
       {
         apiVersion: 'rbac.authorization.k8s.io/v1',
@@ -104,7 +104,7 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     );
   }
 
-  private async requestToken(namespace: string): Promise<string> {
+  async #requestToken(namespace: string): Promise<string> {
     const result = await consoleFetchJSON.post(
       `/api/kubernetes/api/v1/namespaces/${namespace}/serviceaccounts/${SA_NAME}/token`,
       {
@@ -116,7 +116,7 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     return result.status.token;
   }
 
-  private getApiServerURL(): string {
+  #getApiServerURL(): string {
     const serverFlags = (window as unknown as Record<string, unknown>).SERVER_FLAGS as
       | { kubeAPIServerURL?: string }
       | undefined;
@@ -126,19 +126,14 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     return serverFlags.kubeAPIServerURL;
   }
 
-  private async getCACert(namespace: string): Promise<string> {
+  async #getCACert(namespace: string): Promise<string> {
     const cm = await consoleFetchJSON(
       `/api/kubernetes/api/v1/namespaces/${namespace}/configmaps/kube-root-ca.crt`,
     );
     return cm.data['ca.crt'];
   }
 
-  private buildKubeconfig(
-    server: string,
-    caCert: string,
-    token: string,
-    namespace: string,
-  ): string {
+  #buildKubeconfig(server: string, caCert: string, token: string, namespace: string): string {
     return JSON.stringify({
       apiVersion: 'v1',
       kind: 'Config',
@@ -171,17 +166,17 @@ export class OcpClusterCredentialService implements ClusterCredentialService {
     });
   }
 
-  private async createIgnoringConflict(url: string, body: unknown): Promise<void> {
+  async #createIgnoringConflict(url: string, body: unknown): Promise<void> {
     try {
       await consoleFetchJSON.post(url, body);
     } catch (err) {
-      if (!this.isConflict(err)) {
+      if (!this.#isConflict(err)) {
         throw err;
       }
     }
   }
 
-  private isConflict(err: unknown): boolean {
+  #isConflict(err: unknown): boolean {
     if (typeof err !== 'object' || err === null) {
       return false;
     }

@@ -9,7 +9,7 @@ import {
   ForgeConnectionContext,
   ForgeConnectionProvider,
 } from '../context/ForgeConnectionProvider';
-import { useClusterCredentialService } from '../services/cluster/useClusterCredentialService';
+import { useClusterService } from '../services/cluster/useClusterService';
 import { useFunctionService } from '../services/function/useFunctionService';
 import { useSourceControlService } from '../services/source-control/useSourceControlService';
 import { errorMessage } from '../utils/utils';
@@ -71,7 +71,7 @@ function useFunctionCreatePage(): {
   const isConnectedToForge = useContext(ForgeConnectionContext).isActive;
   const functionService = useFunctionService();
   const sourceControl = useSourceControlService();
-  const clusterCredential = useClusterCredentialService();
+  const { generateKubeconfig } = useClusterService();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +91,11 @@ function useFunctionCreatePage(): {
 
       const repo = { owner: data.owner, name: data.repo, url: '', defaultBranch: data.branch };
 
-      const kubeconfig = await clusterCredential.getKubeconfig(data.namespace);
-      await sourceControl.createSecret(repo, 'KUBECONFIG', kubeconfig);
-
-      await sourceControl.createRepo(repo, files, 'Initialize Knative function project');
+      const kubeconfig = await generateKubeconfig(data.namespace);
+      await sourceControl.createRepoWithSecret(repo, files, 'Initialize Knative function project', {
+        name: 'KUBECONFIG',
+        value: kubeconfig,
+      });
 
       navigate('/faas');
     } catch (err) {

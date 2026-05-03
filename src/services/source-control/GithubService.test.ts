@@ -534,12 +534,10 @@ describe('GithubService', () => {
       let _secretPayload: { encrypted_value: string; key_id: string } | null = null;
 
       server.use(
-        http.get(
-          `${GITHUB_API}/repos/twoGiants/my-func/actions/secrets/public-key`,
-          () =>
-            publicKeyError
-              ? HttpResponse.json({ message: 'Not Found' }, { status: 404 })
-              : HttpResponse.json({ key: 'dGVzdC1wdWJsaWMta2V5', key_id: 'key-id-123' }),
+        http.get(`${GITHUB_API}/repos/twoGiants/my-func/actions/secrets/public-key`, () =>
+          publicKeyError
+            ? HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+            : HttpResponse.json({ key: 'dGVzdC1wdWJsaWMta2V5', key_id: 'key-id-123' }),
         ),
         http.put(
           `${GITHUB_API}/repos/twoGiants/my-func/actions/secrets/KUBECONFIG`,
