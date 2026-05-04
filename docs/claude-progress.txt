@@ -7,14 +7,18 @@ Worked on: Encrypt and set KUBECONFIG secret on GitHub repos so GH Actions can d
 Completed:
 - ClusterCredentialService: creates ServiceAccount (func-github), Role, RoleBinding, and system:image-builder binding in target namespace
 - Role grants permissions for pods, pods/exec, services, configmaps, deployments, imagestreams, imagestreamtags, and Knative serving (services, routes, revisions)
-- Generates kubeconfig from TokenRequest API (1 year expiry) and cluster info (API server URL, CA cert)
-- GithubService.createSecret: encrypts secret value with repo public key using libsodium sealed box, sets via Octokit Actions API
+- Generates kubeconfig from TokenRequest API (1 year expiry) and cluster info (API server URL via window.SERVER_FLAGS)
+- Kubeconfig uses insecure-skip-tls-verify for compatibility with both self-signed and publicly trusted CAs
+- GithubService.#createSecret (private): encrypts secret value with repo public key using libsodium sealed box, sets via Octokit Actions API
 - Dynamic import of libsodium-wrappers to work around webpack ESM namespace immutability (crypto functions are populated after WASM init)
 - Explicit base64 variant (ORIGINAL) for GitHub public key compatibility
+- createRepoWithSecret combines repo creation and secret setting in one method, replacing separate createRepo + createSecret
+- Extracted RepoSecret type for the secret parameter
 - Create flow reordered: secret is set before push so the workflow has credentials from the first run
 - 409 Conflict handling for both K8s Status objects (code/reason fields) and standard HTTP errors (response.status)
-- 10 suites, 61 tests, all passing, zero lint errors
-Left off: Branch 018-feat-create-secret ready for commit and PR.
+- Removed duplicate Function Edit Page entry from features.json (rebase artifact)
+- 13 suites, 103 tests, all passing, zero lint errors
+Left off: Branch 018-feat-create-secret, PR review feedback addressed.
 Blockers: None
 
 ---
