@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { server } from '../../../testing/msw/server';
 import { GithubService } from './GithubService';
-import { FileEntry, RepoMetadata } from '../types';
+import { FileEntry, RepoMetadata, RepoSecret } from '../types';
 
 vi.mock('libsodium-wrappers', () => {
   const fakeSealed = new Uint8Array([1, 2, 3, 4]);
@@ -19,6 +19,8 @@ vi.mock('libsodium-wrappers', () => {
 
 const GITHUB_API = 'https://api.github.com';
 const GH_SEARCH_REPOS = `${GITHUB_API}/search/repositories`;
+
+const dummySecret: RepoSecret = { name: 'TEST_SECRET', value: 'test-value' };
 
 describe('GithubService', () => {
   describe('listFunctionRepos', () => {
@@ -69,7 +71,7 @@ describe('GithubService', () => {
       setupCreateRepoHandlers({ repoName: expectedRepo2.name });
 
       // WHEN
-      await svc.createRepo(expectedRepo2, files, 'create second repo');
+      await svc.createRepoWithSecret(expectedRepo2, files, 'create second repo', dummySecret);
       repos = await svc.listFunctionRepos();
 
       // THEN: we still get 2 repos, because the second was cached
@@ -107,7 +109,7 @@ describe('GithubService', () => {
       setupGithubSearchReposResponse({ secondItem: expectedRepo2 });
 
       // WHEN
-      await svc.createRepo(expectedRepo2, files, 'create second repo');
+      await svc.createRepoWithSecret(expectedRepo2, files, 'create second repo', dummySecret);
       repos = await svc.listFunctionRepos();
 
       // THEN: we get 2 repos, deduplication of cache was successful
@@ -201,7 +203,7 @@ describe('GithubService', () => {
     });
   });
 
-  describe('createRepo', () => {
+  describe('createRepoWithSecret', () => {
     const repoInfo: RepoMetadata = {
       owner: 'twoGiants',
       name: 'my-func',
@@ -211,24 +213,26 @@ describe('GithubService', () => {
     const files: FileEntry[] = [
       { path: 'func.yaml', mode: '100644', content: 'name: my-func', type: 'blob' },
     ];
+    const secret: RepoSecret = { name: 'KUBECONFIG', value: 'kubeconfig-value' };
 
     it('throws when repo already exists', async () => {
       setupCreateRepoHandlers({ repoMissing: false });
 
       const svc = new GithubService(() => 'pat');
 
-      await expect(svc.createRepo(repoInfo, files, 'Initial commit')).rejects.toThrow(
-        "repository 'my-func' exists",
-      );
+      await expect(
+        svc.createRepoWithSecret(repoInfo, files, 'Initial commit', secret),
+      ).rejects.toThrow("repository 'my-func' exists");
     });
 
-    it('creates repo, sets topic, pushes files, does not rename branch when main', async () => {
+    it('creates repo, sets secret, sets topic, pushes files, does not rename branch when main', async () => {
       const result = setupCreateRepoHandlers();
 
       const svc = new GithubService(() => 'pat');
-      await svc.createRepo(repoInfo, files, 'Initial commit');
+      await svc.createRepoWithSecret(repoInfo, files, 'Initial commit', secret);
 
       expect(result.repoCreated()).toBe(true);
+      expect(result.secretsCreated()).toEqual(['KUBECONFIG']);
       expect(result.topicsSet()).toEqual(['serverless-function']);
       expect(result.refUpdated()).toBe(true);
       expect(result.branchRenamed()).toBe(false);
@@ -239,10 +243,21 @@ describe('GithubService', () => {
       const result = setupCreateRepoHandlers();
 
       const svc = new GithubService(() => 'pat');
-      await svc.createRepo(customBranchRepo, files, 'Initial commit');
+      await svc.createRepoWithSecret(customBranchRepo, files, 'Initial commit', secret);
 
       expect(result.branchRenamed()).toBe(true);
       expect(result.renamedTo()).toBe('develop');
+    });
+
+    it('encrypts and sets each secret via GitHub Actions API', async () => {
+      const result = setupCreateRepoHandlers();
+
+      const svc = new GithubService(() => 'pat');
+      await svc.createRepoWithSecret(repoInfo, files, 'Initial commit', secret);
+
+      expect(result.secretPayloads()).toEqual([
+        { secret_name: 'KUBECONFIG', encrypted_value: 'AQIDBA==', key_id: 'key-id-123' },
+      ]);
     });
 
     it('throws when the API fails', async () => {
@@ -250,7 +265,15 @@ describe('GithubService', () => {
 
       const svc = new GithubService(() => 'pat');
 
-      await expect(svc.createRepo(repoInfo, files, 'Fail')).rejects.toThrow();
+      await expect(svc.createRepoWithSecret(repoInfo, files, 'Fail', secret)).rejects.toThrow();
+    });
+
+    it('propagates secret API errors', async () => {
+      setupCreateRepoHandlers({ publicKeyError: true });
+
+      const svc = new GithubService(() => 'pat');
+
+      await expect(svc.createRepoWithSecret(repoInfo, files, 'Fail', secret)).rejects.toThrow();
     });
   });
 
@@ -500,76 +523,26 @@ describe('GithubService', () => {
       }
     });
   });
-
-  describe('createSecret', () => {
-    const repo: RepoMetadata = {
-      owner: 'twoGiants',
-      name: 'my-func',
-      url: '',
-      defaultBranch: 'main',
-    };
-
-    it('encrypts and sets a GitHub Actions secret', async () => {
-      const { secretCreated } = setupCreateSecretHandlers();
-
-      const svc = new GithubService(() => 'pat');
-      await svc.createSecret(repo, 'KUBECONFIG', 'kubeconfig-value');
-
-      expect(secretCreated()).toEqual({
-        encrypted_value: 'AQIDBA==',
-        key_id: 'key-id-123',
-      });
-    });
-
-    it('propagates API errors', async () => {
-      setupCreateSecretHandlers({ publicKeyError: true });
-
-      const svc = new GithubService(() => 'pat');
-      await expect(svc.createSecret(repo, 'KUBECONFIG', 'value')).rejects.toThrow();
-    });
-
-    function setupCreateSecretHandlers({
-      publicKeyError = false,
-    }: { publicKeyError?: boolean } = {}) {
-      let _secretPayload: { encrypted_value: string; key_id: string } | null = null;
-
-      server.use(
-        http.get(`${GITHUB_API}/repos/twoGiants/my-func/actions/secrets/public-key`, () =>
-          publicKeyError
-            ? HttpResponse.json({ message: 'Not Found' }, { status: 404 })
-            : HttpResponse.json({ key: 'dGVzdC1wdWJsaWMta2V5', key_id: 'key-id-123' }),
-        ),
-        http.put(
-          `${GITHUB_API}/repos/twoGiants/my-func/actions/secrets/KUBECONFIG`,
-          async ({ request }) => {
-            _secretPayload = (await request.json()) as {
-              encrypted_value: string;
-              key_id: string;
-            };
-            return new HttpResponse(null, { status: 204 });
-          },
-        ),
-      );
-
-      return { secretCreated: () => _secretPayload };
-    }
-  });
 });
 
 function setupCreateRepoHandlers({
   treeError = false,
   repoMissing = true,
   repoName = 'my-func',
+  publicKeyError = false,
 }: {
   treeError?: boolean;
   repoMissing?: boolean;
   repoName?: string;
+  publicKeyError?: boolean;
 } = {}) {
   let _refUpdated = false;
   let _repoCreated = false;
   let _topicsSet: string[] = [];
   let _branchRenamed = false;
   let _renamedTo = '';
+  const _secretsCreated: string[] = [];
+  const _secretPayloads: { secret_name: string; encrypted_value: string; key_id: string }[] = [];
 
   server.use(
     http.get(`${GITHUB_API}/repos/twoGiants/${repoName}`, () =>
@@ -581,6 +554,23 @@ function setupCreateRepoHandlers({
       _repoCreated = true;
       return HttpResponse.json({ name: `${repoName}` });
     }),
+    // Secret: get public key
+    http.get(`${GITHUB_API}/repos/twoGiants/${repoName}/actions/secrets/public-key`, () =>
+      publicKeyError
+        ? HttpResponse.json({ message: 'Not Found' }, { status: 404 })
+        : HttpResponse.json({ key: 'dGVzdC1wdWJsaWMta2V5', key_id: 'key-id-123' }),
+    ),
+    // Secret: create or update
+    http.put(
+      `${GITHUB_API}/repos/twoGiants/${repoName}/actions/secrets/:secret_name`,
+      async ({ request, params }) => {
+        const body = (await request.json()) as { encrypted_value: string; key_id: string };
+        const secret_name = params.secret_name as string;
+        _secretsCreated.push(secret_name);
+        _secretPayloads.push({ secret_name, ...body });
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
     http.post(
       `${GITHUB_API}/repos/twoGiants/${repoName}/branches/main/rename`,
       async ({ request }) => {
@@ -624,5 +614,7 @@ function setupCreateRepoHandlers({
     topicsSet: () => _topicsSet,
     branchRenamed: () => _branchRenamed,
     renamedTo: () => _renamedTo,
+    secretsCreated: () => _secretsCreated,
+    secretPayloads: () => _secretPayloads,
   };
 }

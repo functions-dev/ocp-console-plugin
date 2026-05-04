@@ -5,8 +5,7 @@ import FunctionCreatePage from './FunctionCreatePage';
 import { PAT_KEY, USER_KEY } from '../services/types';
 
 const mockGenerateFunction = vi.fn();
-const mockCreateRepo = vi.fn();
-const mockCreateSecret = vi.fn();
+const mockCreateRepoWithSecret = vi.fn();
 const mockGenerateKubeconfig = vi.fn();
 const mockNavigate = vi.fn();
 
@@ -30,8 +29,7 @@ vi.mock('../services/function/useFunctionService', () => ({
 
 vi.mock('../services/source-control/useSourceControlService', () => ({
   useSourceControlService: () => ({
-    createRepo: mockCreateRepo,
-    createSecret: mockCreateSecret,
+    createRepoWithSecret: mockCreateRepoWithSecret,
     listFunctionRepos: vi.fn(),
     fetchFileContent: vi.fn(),
   }),
@@ -92,15 +90,14 @@ describe('FunctionCreatePage', () => {
     expect(screen.getByRole('button', { name: /Create/ })).toBeInTheDocument();
   });
 
-  it('calls generateFunction, sets KUBECONFIG secret, then pushes on submit', async () => {
+  it('calls generateFunction, creates repo with secrets, then navigates on submit', async () => {
     sessionStorage.setItem(PAT_KEY, 'ghp_test');
     sessionStorage.setItem(USER_KEY, JSON.stringify({ name: 'testuser' }));
     const user = userEvent.setup();
     const files = [{ path: 'func.yaml', mode: '100644', content: 'name: f', type: 'blob' }];
     mockGenerateFunction.mockResolvedValue(files);
-    mockCreateRepo.mockResolvedValue(undefined);
-    mockGenerateKubeconfig.mockResolvedValue('kubeconfig-yaml');
-    mockCreateSecret.mockResolvedValue(undefined);
+    mockGenerateKubeconfig.mockResolvedValue('kubeconfig-json');
+    mockCreateRepoWithSecret.mockResolvedValue(undefined);
 
     renderPage();
 
@@ -122,25 +119,13 @@ describe('FunctionCreatePage', () => {
     });
 
     await waitFor(() => {
-      expect(mockCreateSecret).toHaveBeenCalledWith(
-        { owner: 'testuser', name: 'my-repo', url: '', defaultBranch: 'main' },
-        'KUBECONFIG',
-        'kubeconfig-yaml',
-      );
-    });
-
-    await waitFor(() => {
-      expect(mockCreateRepo).toHaveBeenCalledWith(
+      expect(mockCreateRepoWithSecret).toHaveBeenCalledWith(
         { owner: 'testuser', name: 'my-repo', url: '', defaultBranch: 'main' },
         files,
         'Initialize Knative function project',
+        { name: 'KUBECONFIG', value: 'kubeconfig-json' },
       );
     });
-
-    // Secret must be set before push triggers the workflow
-    const secretOrder = mockCreateSecret.mock.invocationCallOrder[0];
-    const pushOrder = mockCreateRepo.mock.invocationCallOrder[0];
-    expect(secretOrder).toBeLessThan(pushOrder);
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/faas');

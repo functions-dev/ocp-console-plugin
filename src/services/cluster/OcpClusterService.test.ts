@@ -31,11 +31,6 @@ describe('OcpClusterService', () => {
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ status: { token: 'sa-token-value' } });
-
-    // GET call: kube-root-ca.crt
-    mockGet.mockResolvedValueOnce({
-      data: { 'ca.crt': '-----BEGIN CERTIFICATE-----\nFAKECA\n-----END CERTIFICATE-----\n' },
-    });
   });
 
   it('creates SA, Role, RoleBinding, gets token, and returns kubeconfig', async () => {
@@ -87,19 +82,14 @@ describe('OcpClusterService', () => {
       }),
     );
 
-    // Verify CA cert fetch
-    expect(mockGet).toHaveBeenCalledWith(
-      `/api/kubernetes/api/v1/namespaces/${namespace}/configmaps/kube-root-ca.crt`,
-    );
-
     // Verify kubeconfig structure
     const parsed = JSON.parse(kubeconfig);
     expect(parsed.apiVersion).toBe('v1');
     expect(parsed.kind).toBe('Config');
     expect(parsed.clusters[0].cluster.server).toBe('https://api.cluster.example.com:6443');
+    expect(parsed.clusters[0].cluster['insecure-skip-tls-verify']).toBe(true);
     expect(parsed.users[0].user.token).toBe('sa-token-value');
     expect(parsed.contexts[0].context.namespace).toBe(namespace);
-    expect(parsed.clusters[0].cluster['certificate-authority-data']).toBeDefined();
   });
 
   it('treats 409 Conflict (response.status) on SA/Role/RoleBinding as success', async () => {

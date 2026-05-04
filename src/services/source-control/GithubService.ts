@@ -1,5 +1,5 @@
 import { Octokit } from '@octokit/rest';
-import { FileEntry, ForgeUser, RepoMetadata } from '../types';
+import { FileEntry, ForgeUser, RepoMetadata, RepoSecret } from '../types';
 import { SourceControlService } from './SourceControlService';
 
 export class GithubService implements SourceControlService {
@@ -51,7 +51,7 @@ export class GithubService implements SourceControlService {
     repo: RepoMetadata,
     files: FileEntry[],
     message: string,
-    secret: { name: string; value: string },
+    secret: RepoSecret,
   ): Promise<void> {
     const { owner, name: repoName, defaultBranch } = repo;
 
@@ -63,91 +63,7 @@ export class GithubService implements SourceControlService {
       auto_init: true,
     });
 
-    await this.createSecret(repo, secret.name, secret.value);
-
-    if (defaultBranch !== 'main')
-      await this.#octokit.repos.renameBranch({
-        owner,
-        repo: repoName,
-        branch: 'main',
-        new_name: defaultBranch,
-      });
-
-    await this.#octokit.repos.replaceAllTopics({
-      owner,
-      repo: repoName,
-      names: ['serverless-function'],
-    });
-
-    const treeEntries = await Promise.all(
-      files.map(async (file) => {
-        const { data: blob } = await this.#octokit.git.createBlob({
-          owner,
-          repo: repoName,
-          content: file.content,
-          encoding: 'utf-8',
-        });
-        return {
-          path: file.path,
-          mode: file.mode,
-          type: file.type as 'blob',
-          sha: blob.sha,
-        };
-      }),
-    );
-
-    const { data: ref } = await this.#octokit.git.getRef({
-      owner,
-      repo: repoName,
-      ref: `heads/${defaultBranch}`,
-    });
-
-    const { data: parentCommit } = await this.#octokit.git.getCommit({
-      owner,
-      repo: repoName,
-      commit_sha: ref.object.sha,
-    });
-
-    const { data: tree } = await this.#octokit.git.createTree({
-      owner,
-      repo: repoName,
-      tree: treeEntries,
-      base_tree: parentCommit.tree.sha,
-    });
-
-    const { data: commit } = await this.#octokit.git.createCommit({
-      owner,
-      repo: repoName,
-      message,
-      tree: tree.sha,
-      parents: [parentCommit.sha],
-    });
-
-    await this.#octokit.git.updateRef({
-      owner,
-      repo: repoName,
-      ref: `heads/${defaultBranch}`,
-      sha: commit.sha,
-    });
-
-    this.#cachedFunctionRepos.push({
-      owner,
-      name: repoName,
-      url: `https://github.com/${owner}/${repoName}`,
-      defaultBranch,
-    });
-  }
-
-  async createRepo(repo: RepoMetadata, files: FileEntry[], message: string): Promise<void> {
-    const { owner, name: repoName, defaultBranch } = repo;
-
-    if (await this.#doesRepoExist(owner, repoName))
-      throw new Error(`repository '${repoName}' exists, please choose a different name`);
-
-    await this.#octokit.repos.createForAuthenticatedUser({
-      name: repoName,
-      auto_init: true,
-    });
+    await this.#createSecret(repo, secret.name, secret.value);
 
     if (defaultBranch !== 'main')
       await this.#octokit.repos.renameBranch({
@@ -337,7 +253,7 @@ export class GithubService implements SourceControlService {
     return files;
   }
 
-  async createSecret(repo: RepoMetadata, name: string, value: string): Promise<void> {
+  async #createSecret(repo: RepoMetadata, name: string, value: string): Promise<void> {
     const { owner, name: repoName } = repo;
 
     const {

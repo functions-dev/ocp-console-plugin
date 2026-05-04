@@ -10,6 +10,9 @@ export class OcpClusterService {
    * can authenticate to the cluster and run func deploy. Creates the
    * necessary ServiceAccount, Role, and RoleBindings in the target
    * namespace if they do not already exist.
+   *
+   * The kubeconfig uses insecure-skip-tls-verify so it works regardless
+   * of whether the API server uses a publicly trusted or self-signed CA.
    */
   async generateKubeconfig(namespace: string): Promise<string> {
     await this.#createServiceAccount(namespace);
@@ -17,13 +20,10 @@ export class OcpClusterService {
     await this.#createRoleBinding(namespace);
     await this.#createImageBuilderBinding(namespace);
 
-    const [token, caCert] = await Promise.all([
-      this.#requestToken(namespace),
-      this.#getCACert(namespace),
-    ]);
+    const token = await this.#requestToken(namespace);
     const apiServerURL = this.#getApiServerURL();
 
-    return this.#buildKubeconfig(apiServerURL, caCert, token, namespace);
+    return this.#buildKubeconfig(apiServerURL, token, namespace);
   }
 
   async #createServiceAccount(namespace: string): Promise<void> {
@@ -126,22 +126,15 @@ export class OcpClusterService {
     return serverFlags.kubeAPIServerURL;
   }
 
-  async #getCACert(namespace: string): Promise<string> {
-    const cm = await consoleFetchJSON(
-      `/api/kubernetes/api/v1/namespaces/${namespace}/configmaps/kube-root-ca.crt`,
-    );
-    return cm.data['ca.crt'];
-  }
-
-  #buildKubeconfig(server: string, caCert: string, token: string, namespace: string): string {
+  #buildKubeconfig(server: string, token: string, namespace: string): string {
     return JSON.stringify({
       apiVersion: 'v1',
       kind: 'Config',
       clusters: [
         {
           cluster: {
-            'certificate-authority-data': btoa(caCert),
             server,
+            'insecure-skip-tls-verify': true,
           },
           name: 'cluster',
         },
