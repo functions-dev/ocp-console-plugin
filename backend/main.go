@@ -247,5 +247,24 @@ func generateCIWorkflow(root, branch, registry string) error {
 	}
 
 	workflow := ci.NewGitHubWorkflow(cfg)
-	return workflow.Export(cfg.FnGitHubWorkflowFilepath(root), ci.DefaultWorkflowWriter)
+	workflowPath := cfg.FnGitHubWorkflowFilepath(root)
+	if err := workflow.Export(workflowPath, ci.DefaultWorkflowWriter); err != nil {
+		return err
+	}
+	return patchWorkflowRegistryFlag(workflowPath)
+}
+
+// patchWorkflowRegistryFlag rewrites the generated workflow so that
+// --registry is omitted when vars.REGISTRY_URL is not set.
+// TODO: remove once fixed upstream in knative.dev/func/cmd/ci.
+func patchWorkflowRegistryFlag(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	patched := strings.ReplaceAll(string(data),
+		`--registry=${{ vars.REGISTRY_URL }}`,
+		`${{ vars.REGISTRY_URL && format('--registry={0}', vars.REGISTRY_URL) || '' }}`,
+	)
+	return os.WriteFile(path, []byte(patched), 0o644)
 }
