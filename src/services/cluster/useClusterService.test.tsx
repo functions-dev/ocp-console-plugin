@@ -21,6 +21,7 @@ const mockKsvc = {
   },
   status: {
     url: 'https://my-func-demo.apps.example.com',
+    latestReadyRevisionName: 'my-func-00001',
     conditions: [{ type: 'Ready', status: 'True' }],
   },
 };
@@ -31,7 +32,10 @@ const mockDeployment = {
   metadata: {
     name: 'my-func-00001-deployment',
     namespace: 'demo',
-    labels: { 'function.knative.dev/name': 'my-func' },
+    labels: {
+      'function.knative.dev/name': 'my-func',
+      'serving.knative.dev/revision': 'my-func-00001',
+    },
   },
   spec: { replicas: 1 },
   status: { readyReplicas: 1 },

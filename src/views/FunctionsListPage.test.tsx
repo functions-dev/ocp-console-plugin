@@ -83,6 +83,7 @@ function ksvcFixture(
   name: string,
   readyStatus: string,
   url = `https://${name}-demo.apps.example.com`,
+  revision = `${name}-00001`,
 ) {
   return {
     apiVersion: 'serving.knative.dev/v1',
@@ -94,19 +95,28 @@ function ksvcFixture(
     },
     status: {
       url,
+      latestReadyRevisionName: revision,
       conditions: [{ type: 'Ready', status: readyStatus }],
     },
   };
 }
 
-function deploymentFixture(name: string, specReplicas: number, readyReplicas: number) {
+function deploymentFixture(
+  name: string,
+  specReplicas: number,
+  readyReplicas: number,
+  revision = `${name}-00001`,
+) {
   return {
     apiVersion: 'apps/v1',
     kind: 'Deployment',
     metadata: {
-      name: `${name}-00001-deployment`,
+      name: `${revision}-deployment`,
       namespace: 'demo',
-      labels: { 'function.knative.dev/name': name },
+      labels: {
+        'function.knative.dev/name': name,
+        'serving.knative.dev/revision': revision,
+      },
     },
     spec: { replicas: specReplicas },
     status: { readyReplicas },
@@ -379,6 +389,32 @@ describe('FunctionsListPage', () => {
     );
 
     expect(await screen.findByTestId('fn-status')).toHaveTextContent('Error');
+  });
+
+  it('picks latest revision deployment when multiple revisions exist', async () => {
+    renderAuthenticated();
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: vi.fn().mockResolvedValue([repoFixture('my-func')]),
+      fetchFileContent: vi.fn().mockResolvedValue('name: my-func\nruntime: go\nnamespace: demo\n'),
+    });
+    mockUseClusterService.mockReturnValue(
+      clusterData({
+        knativeServices: [ksvcFixture('my-func', 'True', undefined, 'my-func-00002')],
+        deployments: [
+          deploymentFixture('my-func', 0, 0, 'my-func-00001'),
+          deploymentFixture('my-func', 1, 1, 'my-func-00002'),
+        ],
+      }),
+    );
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByTestId('fn-status')).toHaveTextContent('Running');
+    expect(screen.getByTestId('fn-replicas')).toHaveTextContent('1');
   });
 
   it('passes function names to useClusterService', async () => {

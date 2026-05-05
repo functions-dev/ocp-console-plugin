@@ -161,9 +161,14 @@ function useFunctionListPage(): {
         const ksvc = knativeServices.find(
           (s) => s.metadata?.labels?.['function.knative.dev/name'] === item.name,
         );
-        const deployment = deployments.find(
-          (d) => d.metadata?.labels?.['function.knative.dev/name'] === item.name,
-        );
+        const latestRevision = ksvc?.status?.latestReadyRevisionName;
+        const deployment = latestRevision
+          ? deployments.find(
+              (d) => d.metadata?.labels?.['serving.knative.dev/revision'] === latestRevision,
+            )
+          : deployments.find(
+              (d) => d.metadata?.labels?.['function.knative.dev/name'] === item.name,
+            );
         return ksvc && deployment ? enrichItem(item, ksvc, deployment) : item;
       }),
     [functionItems, knativeServices, deployments],
