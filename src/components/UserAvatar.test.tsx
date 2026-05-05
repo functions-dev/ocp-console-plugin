@@ -20,7 +20,7 @@ const testUser = { name: 'twoGiants' };
 
 function renderWithContext(
   ui: ReactNode,
-  contextValue = { isActive: false, user: testUser, connectToForge: vi.fn() },
+  contextValue = { isActive: false, user: testUser, connectionId: 0, connectToForge: vi.fn() },
 ) {
   return render(
     <ForgeConnectionContext.Provider value={contextValue}>{ui}</ForgeConnectionContext.Provider>,
@@ -120,6 +120,7 @@ describe('UserAvatar', () => {
       renderWithContext(<UserAvatar enableReconnect />, {
         isActive: false,
         user: testUser,
+        connectionId: 0,
         connectToForge,
       });
 
@@ -158,6 +159,48 @@ describe('UserAvatar', () => {
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
       expect(screen.queryByText('Personal Access Token')).not.toBeInTheDocument();
+    });
+
+    it('clears PAT input after successful connect', async () => {
+      const user = userEvent.setup();
+      const connectToForge = vi.fn();
+      mockFetchUserInfo.mockResolvedValue(testUser);
+
+      renderWithContext(<UserAvatar enableReconnect />, {
+        isActive: false,
+        user: testUser,
+        connectionId: 0,
+        connectToForge,
+      });
+
+      await user.type(screen.getByLabelText('Personal Access Token'), 'ghp_valid');
+      await user.click(screen.getByRole('button', { name: 'Connect' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('twoGiants')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'twoGiants' }));
+
+      expect(screen.getByLabelText('Personal Access Token')).toHaveValue('');
+    });
+
+    it('clears PAT input and error on cancel', async () => {
+      const user = userEvent.setup();
+      mockFetchUserInfo.mockRejectedValue(new Error('Bad credentials'));
+
+      renderWithContext(<UserAvatar enableReconnect />);
+
+      await user.type(screen.getByLabelText('Personal Access Token'), 'ghp_bad');
+      await user.click(screen.getByRole('button', { name: 'Connect' }));
+
+      expect(await screen.findByText('Bad credentials')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      await user.click(screen.getByRole('button', { name: 'Connect to GitHub' }));
+
+      expect(screen.getByLabelText('Personal Access Token')).toHaveValue('');
+      expect(screen.queryByText('Bad credentials')).not.toBeInTheDocument();
     });
 
     it('disables Cancel button while validating', async () => {

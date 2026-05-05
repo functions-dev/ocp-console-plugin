@@ -18,6 +18,8 @@ export class GithubService implements SourceControlService {
     if (token !== this.#cachedToken) {
       this.#cachedToken = token;
       this.#cachedOctokit = new Octokit({ auth: token });
+      this.#cachedFunctionRepos = [];
+      this.#lastCommitSha.clear();
     }
     return this.#cachedOctokit!;
   }

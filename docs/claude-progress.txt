@@ -2,6 +2,21 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-05-13 | Session: Fix function list not updating on GitHub user switch
+Worked on: Bug fix for PAT switching via Avatar button not refreshing the function list
+Completed:
+- Root cause: useEffect in useFunctionListPage had no dependency that changed on PAT switch (isConnectedToForge stayed true), and GithubService kept stale repo cache from previous user
+- Added connectionId counter to ForgeConnectionContext, incremented on every connectToForge call
+- useFunctionListPage uses connectionId as useEffect dependency and render-time state reset trigger
+- GithubService clears #cachedFunctionRepos and #lastCommitSha when token changes in the #octokit getter
+- Reworked usePatModal per PR review: replaced wasOpen render-time tracking with explicit cleanup at two exit points (setPat('') after successful connect, handleClose callback on cancel/dismiss)
+- Clear stale functionItems on user switch so previous user's data doesn't linger during re-fetch
+- Added tests for PAT modal cleanup (cleared on connect, cleared on cancel)
+- 13 suites, 112 tests, all passing, zero lint errors
+Left off: Branch chng-gh-user, PR #24 open. Reviewer requested dropping connectionId in favor of user.name, but keeping connectionId because it handles same-user different-PAT scenario.
+Blockers: None
+
+---
 ## 2026-04-30 | Session: Set KUBECONFIG GitHub secret for CI/CD deployment
 Worked on: Encrypt and set KUBECONFIG secret on GitHub repos so GH Actions can deploy to the cluster
 Completed:

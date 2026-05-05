@@ -90,10 +90,13 @@ interface PatModalProps {
 
 function PatModal({ isOpen, onClose, onConnect }: PatModalProps) {
   const { t } = useTranslation('plugin__console-functions-plugin');
-  const { pat, isValidating, error, setPat, handleConnect } = usePatModal(onConnect);
+  const { pat, isValidating, error, setPat, handleConnect, handleClose } = usePatModal(
+    onClose,
+    onConnect,
+  );
 
   return (
-    <Modal isOpen={isOpen} onClose={isValidating ? undefined : onClose} variant="small">
+    <Modal isOpen={isOpen} onClose={isValidating ? undefined : handleClose} variant="small">
       <ModalHeader title={t('Connect to GitHub')} />
       <ModalBody>
         {error && (
@@ -120,7 +123,7 @@ function PatModal({ isOpen, onClose, onConnect }: PatModalProps) {
         >
           {t('Connect')}
         </Button>
-        <Button variant="link" onClick={onClose} isDisabled={isValidating}>
+        <Button variant="link" onClick={handleClose} isDisabled={isValidating}>
           {t('Cancel')}
         </Button>
       </ModalFooter>
@@ -128,7 +131,7 @@ function PatModal({ isOpen, onClose, onConnect }: PatModalProps) {
   );
 }
 
-function usePatModal(onConnect: (pat: string) => Promise<void>) {
+function usePatModal(onClose: () => void, onConnect: (pat: string) => Promise<void>) {
   const [pat, setPat] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +141,7 @@ function usePatModal(onConnect: (pat: string) => Promise<void>) {
     setError(null);
     try {
       await onConnect(pat);
+      setPat('');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -145,5 +149,11 @@ function usePatModal(onConnect: (pat: string) => Promise<void>) {
     }
   };
 
-  return { pat, isValidating, error, setPat, handleConnect };
+  const handleClose = () => {
+    setPat('');
+    setError(null);
+    onClose();
+  };
+
+  return { pat, isValidating, error, setPat, handleConnect, handleClose };
 }

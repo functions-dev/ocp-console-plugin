@@ -92,26 +92,22 @@ function useFunctionListPage(): {
   isConnectedToForge: boolean;
   error: string;
 } {
-  const isConnectedToForge = useContext(ForgeConnectionContext).isActive;
+  const { isActive: isConnectedToForge, connectionId } = useContext(ForgeConnectionContext);
   const sourceControl = useSourceControlService();
   const navigate = useNavigate();
 
   const [functionItems, setFunctionItems] = useState<FunctionTableItem[]>([]);
   const [reposLoaded, setReposLoaded] = useState(!isConnectedToForge);
-  const [wasConnectedToForge, setWasConnectedToForge] = useState(isConnectedToForge);
+  const [prevConnectionId, setPrevConnectionId] = useState(connectionId);
 
   const [error, setError] = useState<string>('');
 
-  // Reset state when authentication status changes (render-time adjustment)
-  if (isConnectedToForge !== wasConnectedToForge) {
-    setWasConnectedToForge(isConnectedToForge);
+  // Reset state when connection changes (initial connect or user switch)
+  if (connectionId !== prevConnectionId) {
+    setPrevConnectionId(connectionId);
+    setFunctionItems([]);
     setError('');
-    if (isConnectedToForge) {
-      setReposLoaded(false);
-    } else {
-      setFunctionItems([]);
-      setReposLoaded(true);
-    }
+    setReposLoaded(false);
   }
 
   useEffect(() => {
@@ -149,7 +145,7 @@ function useFunctionListPage(): {
     return () => {
       ignore = true;
     };
-  }, [sourceControl, isConnectedToForge]);
+  }, [sourceControl, isConnectedToForge, connectionId]);
 
   const functionNames = useMemo(() => functionItems.map((item) => item.name), [functionItems]);
 

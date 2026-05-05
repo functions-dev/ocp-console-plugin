@@ -8,6 +8,7 @@ const testUser: ForgeUser = { name: 'testuser' };
 const forgeContext = {
   isActive: true,
   user: testUser,
+  connectionId: 0,
   connectToForge: vi.fn(),
 };
 
