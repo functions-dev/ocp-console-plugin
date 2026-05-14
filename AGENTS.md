@@ -32,5 +32,7 @@ No em dashes (`—`). Use commas, periods, or parentheses instead.
 | `docs/potential-features.json` | Candidate features for future implementation |
 | `docs/claude-progress.txt` | Session handoff log — see [`references/claude-progress-readme.md`](docs/references/claude-progress-readme.md) |
 | `docs/agent-struggles.json` | Struggle log — see [`references/agent-struggles-readme.md`](docs/references/agent-struggles-readme.md) |
+| `.dev-env.json` | Dev server ports (backendPort, pluginPort, consolePort), written by init.sh |
+| `.dev-logs/` | Dev server log files (backend.log, webpack.log, console.log) |
 | `docs/references/ocp-plugin-guide.md` | OCP dynamic plugin mechanics, i18n, extension points |
 | `docs/references/commit-message-guide.md` | Git commit conventions and authorship rules |
