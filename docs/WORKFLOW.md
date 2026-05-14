@@ -9,8 +9,9 @@ Every session, before doing any work:
 3. Read `docs/agent-struggles.json` — if unresolved entries exist, present to user
 4. Read `docs/features.json` — pick first `"passes": false` entry
 5. Run `./init.sh` — start dev env
-6. Run tests — verify app is healthy
-7. If broken → fix first. If clean → start [Feature Development Sequence](#feature-development-sequence).
+6. Read `.dev-env.json` — note the dev server ports (backend, plugin, console)
+7. Run tests — verify app is healthy
+8. If broken → fix first. If clean → start [Feature Development Sequence](#feature-development-sequence).
 
 ## Feature Development Sequence
 

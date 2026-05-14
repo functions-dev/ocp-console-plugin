@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(git log:*), Bash(pwd), Bash(./init.sh), Bash(yarn test*), Read
+allowed-tools: Bash(git log:*), Bash(pwd), Bash(./init.sh), Bash(yarn test*), Bash(cat .dev-env.json), Read
 description: Run startup sequence (steps 1-6 from docs/WORKFLOW.md)
 ---
 
@@ -19,5 +19,6 @@ Execute the startup sequence from `docs/WORKFLOW.md`. AGENTS.md is always in con
 3. **Check struggles** — read `docs/agent-struggles.json`. If unresolved entries exist, present to user.
 4. **Pick feature** — read `docs/features.json`, find first `"passes": false` entry.
 5. **Start dev env** — run `./init.sh`.
-6. **Run tests** — run `yarn test` and verify app is healthy.
-7. **Wait** — tell the user you're oriented, report the picked feature and which step of the Feature Development Sequence you'd start at. When the user says to proceed, follow the Feature Development Sequence in `docs/WORKFLOW.md` step by step. Do NOT start any work autonomously.
+6. **Read ports** — read `.dev-env.json` and note the backend, plugin, and console ports.
+7. **Run tests** — run `yarn test` and verify app is healthy.
+8. **Wait** — tell the user you're oriented, report the picked feature and which step of the Feature Development Sequence you'd start at. When the user says to proceed, follow the Feature Development Sequence in `docs/WORKFLOW.md` step by step. Do NOT start any work autonomously.

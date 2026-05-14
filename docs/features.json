@@ -146,6 +146,17 @@
     "passes": true
   },
   {
+    "category": "technical",
+    "description": "Better testing server setup (init.sh)",
+    "steps": [
+      "The --stop operation shall employ PID files, not kill processes by name.",
+      "The ports (go backend 8080, webpack server 9001, webconsole container 9000) shall randomized, so it's possible to run multiple testing servers (for multiple Claude instances).",
+      "The randomized ports shall be available to the Claude via a file.",
+      "The go backend service should be automatically recompiled/restarted upon change to the ./backend directory."
+    ],
+    "passes": true
+  },
+  {
     "category": "functional",
     "description": "Function List Page shows deployed functions from all user-accessible namespaces without requiring a PAT",
     "steps": [

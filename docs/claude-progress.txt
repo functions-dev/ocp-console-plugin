@@ -2,6 +2,32 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-05-18 | Session: Error server and JSON error responses
+Worked on: Errserver for failed Go compilation, JSON error responses for backend
+Completed:
+- Error server (backend/cmd/errserver): on Go build failure, the file watcher starts errserver which returns HTTP 500 with compilation error as JSON {"message": "..."}
+- OCP console's appFetch parses json.message automatically, so the UI shows actual compiler output instead of generic "Internal Server Error"
+Left off: Branch improve-test-cluster, PR #25 open. Backend JSON error response not yet pushed.
+Blockers: None
+
+---
+## 2026-05-15 | Session: Better testing server setup (init.sh)
+Worked on: Improve init.sh with PID files, port randomization, Go auto-recompile, agent docs
+Completed:
+- Stop operations use PID files (.dev-pids/) with recursive kill_tree instead of pgrep/pkill
+- Ports randomized via --randomize-ports flag (default ports unchanged for human testers)
+- Active ports written to .dev-env.json for agent and tooling discovery
+- Go backend auto-recompiles on .go/.mod/.sum changes via inotifywait (build-then-swap strategy)
+- start-console.sh accepts --backend-port, --plugin-port, --console-port, --cidfile CLI args
+- Dropped --network=host on Linux in favor of -p port mapping (enables console port randomization)
+- webpack.config.ts reads PLUGIN_PORT env var with fallback to 9001
+- Agent docs (AGENTS.md, WORKFLOW.md, init-session) reference .dev-env.json and .dev-logs/
+- Design spec and implementation plan written
+- 13 suites, 112 tests, all passing
+Left off: Branch improve-test-cluster, PR #25 open.
+Blockers: None
+
+---
 ## 2026-05-13 | Session: Fix function list not updating on GitHub user switch
 Worked on: Bug fix for PAT switching via Avatar button not refreshing the function list
 Completed:
