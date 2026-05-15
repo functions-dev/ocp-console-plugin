@@ -38,6 +38,18 @@ Left off: Three follow-up items for next day.
 Blockers: oc login not accessible from agent sandbox (permission denied on ~/.kube/config)
 
 ---
+## 2026-05-20 | Session: Refresh button and list page toolbar (PR #26)
+Worked on: Add refresh button to functions list, address review feedback
+- Added manual refresh button (SyncAltIcon) that re-fetches function repos from GitHub on click
+- Refresh uses PF Button isLoading prop for native spinner (no custom CSS animation)
+- Refresh button disabled while fetch is in flight (prevents queued refreshes)
+- Fixed caching bug in GithubService where deleted repos persisted after refresh (replaced stale merge logic with pendingRepos buffer)
+- Moved create and refresh buttons into a PF Toolbar above the table with ToolbarItem variant="separator"
+- 13 suites, 117 tests, all passing, zero lint errors
+Left off: PR #26 ready for re-review. Visual verification pending (could not authenticate to GitHub from sandbox).
+Blockers: None
+
+---
 ## 2026-05-18 | Session: Error server and JSON error responses
 Worked on: Errserver for failed Go compilation, JSON error responses for backend
 Completed:
