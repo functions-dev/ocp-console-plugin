@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom-v5-compat';
 import FunctionsListPage from './FunctionsListPage';
 import { PAT_KEY } from '../../common/services/types';
@@ -434,5 +435,127 @@ describe('FunctionsListPage', () => {
     await screen.findByTestId('fn-name');
 
     expect(mockUseClusterService).toHaveBeenLastCalledWith(['fn-a']);
+  });
+
+  it('re-fetches repos when refresh button is clicked', async () => {
+    renderAuthenticated();
+    const mockListRepos = vi.fn().mockResolvedValue([repoFixture('fn-a')]);
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: mockListRepos,
+      fetchFileContent: vi.fn().mockResolvedValue('name: fn-a\nruntime: go\nnamespace: demo\n'),
+    });
+    mockUseClusterService.mockReturnValue(clusterData());
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('fn-name');
+    expect(mockListRepos).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    await waitFor(() => {
+      expect(mockListRepos).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('does not show spinner on refresh button during initial page load', async () => {
+    renderAuthenticated();
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: vi.fn().mockResolvedValue([repoFixture('fn-a')]),
+      fetchFileContent: vi.fn().mockResolvedValue('name: fn-a\nruntime: go\nnamespace: demo\n'),
+    });
+    mockUseClusterService.mockReturnValue(clusterData());
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('fn-name');
+
+    const refreshBtn = screen.getByRole('button', { name: 'Refresh' });
+    expect(refreshBtn.querySelector('[role="progressbar"]')).not.toBeInTheDocument();
+  });
+
+  it('shows spinner on refresh button only while a button-triggered refresh is in flight', async () => {
+    renderAuthenticated();
+    let resolveRepos: (value: unknown[]) => void;
+    const mockListRepos = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRepos = resolve;
+        }),
+    );
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: mockListRepos,
+      fetchFileContent: vi.fn().mockResolvedValue('name: fn-a\nruntime: go\nnamespace: demo\n'),
+    });
+    mockUseClusterService.mockReturnValue(clusterData());
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    // Complete initial load
+    resolveRepos!([repoFixture('fn-a')]);
+    await screen.findByTestId('fn-name');
+
+    const refreshBtn = screen.getByRole('button', { name: 'Refresh' });
+
+    // Click refresh -- should show spinner
+    await userEvent.click(refreshBtn);
+    expect(refreshBtn.querySelector('[role="progressbar"]')).toBeInTheDocument();
+
+    // Resolve the refresh fetch -- spinner should disappear
+    resolveRepos!([repoFixture('fn-a')]);
+    await waitFor(() => {
+      expect(refreshBtn.querySelector('[role="progressbar"]')).not.toBeInTheDocument();
+    });
+  });
+
+  it('removes a deleted repo from the list after refresh', async () => {
+    renderAuthenticated();
+    const mockListRepos = vi
+      .fn()
+      .mockResolvedValueOnce([repoFixture('fn-a'), repoFixture('fn-b')])
+      .mockResolvedValueOnce([repoFixture('fn-a')]);
+    const mockFetchFile = vi
+      .fn()
+      .mockImplementation(
+        (repo: { name: string }) => `name: ${repo.name}\nruntime: go\nnamespace: demo\n`,
+      );
+    mockUseSourceControl.mockReturnValue({
+      listFunctionRepos: mockListRepos,
+      fetchFileContent: mockFetchFile,
+    });
+    mockUseClusterService.mockReturnValue(clusterData());
+
+    render(
+      <MemoryRouter>
+        <FunctionsListPage />
+      </MemoryRouter>,
+    );
+
+    // Initial load: both repos visible
+    const names = await screen.findAllByTestId('fn-name');
+    expect(names).toHaveLength(2);
+    expect(names[0]).toHaveTextContent('fn-a');
+    expect(names[1]).toHaveTextContent('fn-b');
+
+    // Click refresh (second call returns only fn-a)
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+    await waitFor(() => {
+      const refreshedNames = screen.getAllByTestId('fn-name');
+      expect(refreshedNames).toHaveLength(1);
+      expect(refreshedNames[0]).toHaveTextContent('fn-a');
+    });
   });
 });
