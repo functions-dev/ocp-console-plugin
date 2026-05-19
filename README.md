@@ -4,7 +4,7 @@ A Functions-as-a-Service PoC UI for the OpenShift Web Console. Developers create
 
 Built as an [OpenShift Console dynamic plugin](https://github.com/openshift/console/tree/main/frontend/packages/console-dynamic-plugin-sdk) using React, TypeScript, and PatternFly 6.
 
-Check out the **[Github page](https://functions-dev.github.io/func-console/)** for a quick start or read ahead.
+Check out the **[Github page](https://functions-dev.github.io/ocp-console-plugin/)** for a quick start or read ahead.
 
 ## Deployment on cluster
 
@@ -18,7 +18,7 @@ Check out the **[Github page](https://functions-dev.github.io/func-console/)** f
 
 ```shell
 oc new-project console-functions-plugin
-oc apply -f https://functions-dev.github.io/func-console/plugin.yaml
+oc apply -f https://functions-dev.github.io/ocp-console-plugin/plugin.yaml
 ```
 
 ### Manual install (requires [Helm](https://helm.sh))
@@ -27,16 +27,16 @@ oc apply -f https://functions-dev.github.io/func-console/plugin.yaml
 oc new-project console-functions-plugin
 helm upgrade -i console-functions-plugin charts/openshift-console-plugin \
     -n console-functions-plugin --create-namespace \
-    --set "plugin.image=ghcr.io/functions-dev/console-functions-plugin:latest@sha256:<digest>"
+    --set "plugin.image=ghcr.io/functions-dev/ocp-console-plugin-functions-plugin:latest@sha256:<digest>"
 ```
 
 To deploy a specific build, use its git commit SHA as the tag:
 
 ```shell
---set "plugin.image=ghcr.io/functions-dev/console-functions-plugin:sha-<commit>"
+--set "plugin.image=ghcr.io/functions-dev/ocp-console-plugin-functions-plugin:sha-<commit>"
 ```
 
-Available image tags are listed in the [container registry](https://github.com/functions-dev/func-console/pkgs/container/console-functions-plugin). Consult the chart [values](charts/openshift-console-plugin/values.yaml) file for additional parameters.
+Available image tags are listed in the [container registry](https://github.com/functions-dev/ocp-console-plugin/pkgs/container/console-functions-plugin). Consult the chart [values](charts/openshift-console-plugin/values.yaml) file for additional parameters.
 
 ## Development
 
