@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom-v5-compat';
 import FunctionsListPage from './FunctionsListPage';
-import { PAT_KEY } from '../services/types';
+import { PAT_KEY } from '../../common/services/types';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -18,16 +18,16 @@ vi.mock('@openshift-console/dynamic-plugin-sdk', () => ({
 }));
 
 const mockUseSourceControl = vi.fn();
-vi.mock('../services/source-control/useSourceControlService', () => ({
+vi.mock('../../common/services/source-control/useSourceControlService', () => ({
   useSourceControlService: () => mockUseSourceControl(),
 }));
 
 const mockUseClusterService = vi.fn();
-vi.mock('../services/cluster/useClusterService', () => ({
+vi.mock('../../common/services/cluster/useClusterService', () => ({
   useClusterService: (...args: unknown[]) => mockUseClusterService(...args),
 }));
 
-vi.mock('../components/FunctionTable', () => ({
+vi.mock('./components/FunctionTable', () => ({
   FunctionTable: ({
     functions,
   }: {
@@ -43,7 +43,7 @@ vi.mock('../components/FunctionTable', () => ({
     )),
 }));
 
-vi.mock('../components/UserAvatar', () => ({
+vi.mock('../../common/components/UserAvatar', () => ({
   UserAvatar: ({ enableReconnect }: { enableReconnect: boolean }) => (
     <span data-testid="user-avatar">{enableReconnect ? 'reconnect' : 'no-reconnect'}</span>
   ),

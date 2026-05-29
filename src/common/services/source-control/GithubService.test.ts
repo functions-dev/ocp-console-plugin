@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { server } from '../../../testing/msw/server';
+import { server } from '../../../../testing/msw/server';
 import { GithubService } from './GithubService';
 import { FileEntry, RepoMetadata, RepoSecret } from '../types';
 

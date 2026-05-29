@@ -10,8 +10,8 @@ import {
   TextInput,
 } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
-import { FunctionRuntime } from '../services/types';
-import { ForgeConnectionContext } from '../context/ForgeConnectionProvider';
+import { FunctionRuntime } from '../../../common/services/types';
+import { ForgeConnectionContext } from '../../../common/context/ForgeConnectionProvider';
 
 const OCP_INTERNAL_REGISTRY = 'image-registry.openshift-image-registry.svc:5000/';
 

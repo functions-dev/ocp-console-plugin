@@ -8,10 +8,6 @@ vi.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   },
 }));
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 const config: FunctionConfig = {
   name: 'my-func',
   runtime: 'node',
@@ -26,6 +22,10 @@ const files: FileEntry[] = [
 ];
 
 describe('FunctionBackendService', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('calls consoleFetchJSON.post with the proxy URL and returns generated files', async () => {
     vi.mocked(consoleFetchJSON.post).mockResolvedValue(files);
 

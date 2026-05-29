@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CreateFunctionForm } from './CreateFunctionForm';
-import { ForgeConnectionContext } from '../context/ForgeConnectionProvider';
-import { ForgeUser } from '../services/types';
+import { ForgeConnectionContext } from '../../../common/context/ForgeConnectionProvider';
+import { ForgeUser } from '../../../common/services/types';
 
 const testUser: ForgeUser = { name: 'testuser' };
 const forgeContext = {
@@ -22,17 +22,12 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 describe('CreateFunctionForm', () => {
   const onSubmit = vi.fn();
   const onCancel = vi.fn();
 
-  beforeEach(() => {
-    onSubmit.mockClear();
-    onCancel.mockClear();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders all form fields', () => {

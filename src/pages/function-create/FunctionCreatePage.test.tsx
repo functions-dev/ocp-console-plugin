@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import FunctionCreatePage from './FunctionCreatePage';
-import { PAT_KEY, USER_KEY } from '../services/types';
+import { PAT_KEY, USER_KEY } from '../../common/services/types';
 
 const mockGenerateFunction = vi.fn();
 const mockCreateRepoWithSecret = vi.fn();
@@ -23,11 +23,11 @@ vi.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   ),
 }));
 
-vi.mock('../services/function/useFunctionService', () => ({
+vi.mock('../../common/services/function/useFunctionService', () => ({
   useFunctionService: () => ({ generateFunction: mockGenerateFunction }),
 }));
 
-vi.mock('../services/source-control/useSourceControlService', () => ({
+vi.mock('../../common/services/source-control/useSourceControlService', () => ({
   useSourceControlService: () => ({
     createRepoWithSecret: mockCreateRepoWithSecret,
     listFunctionRepos: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('../services/source-control/useSourceControlService', () => ({
   }),
 }));
 
-vi.mock('../services/cluster/useClusterService', () => ({
+vi.mock('../../common/services/cluster/useClusterService', () => ({
   useClusterService: () => ({
     knativeServices: [],
     deployments: [],
@@ -49,23 +49,11 @@ vi.mock('react-router-dom-v5-compat', () => ({
   useNavigate: () => mockNavigate,
 }));
 
-vi.mock('../components/UserAvatar', () => ({
+vi.mock('../../common/components/UserAvatar', () => ({
   UserAvatar: ({ enableReconnect }: { enableReconnect: boolean }) => (
     <span data-testid="user-avatar">{enableReconnect ? 'reconnect' : 'no-reconnect'}</span>
   ),
 }));
-
-beforeEach(() => {
-  sessionStorage.clear();
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
-
-afterAll(() => {
-  sessionStorage.clear();
-});
 
 const renderPage = () =>
   render(
@@ -82,6 +70,18 @@ const fillForm = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe('FunctionCreatePage', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    sessionStorage.clear();
+  });
+
   it('renders CreateFunctionForm', () => {
     sessionStorage.setItem(PAT_KEY, 'ghp_test');
 

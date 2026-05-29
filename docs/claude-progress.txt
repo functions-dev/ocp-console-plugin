@@ -2,6 +2,42 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-05-21 | Session: Page co-location restructure (continued)
+Worked on: Follow-up fixes from review, test cleanup, docs
+Completed:
+- Folded LeaveModal back into EditToolbar.tsx (sub-component rule: single consumer = inline unexported)
+- Documented sub-component rule in ARCHITECTURE.md
+- Restructured ARCHITECTURE.md Page/Component/Hook rules into subsections (Pages, Components, Hooks, File Ordering)
+- Added hooks directory convention to ARCHITECTURE.md (common/hooks/, pages/<name>/hooks/)
+- Added EditToolbar tests (9 tests: render, disabled state, save success with auto-dismiss, save failure, back navigation, leave modal flow)
+- Moved all beforeEach/afterEach/afterAll into describe blocks across all test files
+- Merged duplicate beforeEach blocks in OcpClusterService.test.ts
+- Added scoping rule to TESTING.md (beforeEach/afterEach inside describe, vi.mock outside)
+- Fixed useClusterService.test.tsx afterEach scoping
+- Added yarn ci script to package.json (lint + test + build)
+- Updated init-session.md: use yarn ci, handle init.sh failure in sandbox
+- Fixed Monaco editor error: replaced runtime import of @patternfly/react-code-editor with import type (prevents bundling Monaco workers)
+- 14 suites, 121 tests passing, zero lint errors, webpack builds clean
+Left off: PR #31 ready for review.
+Blockers: Monaco "Unexpected usage" error in OCP console editor page (pre-existing, deferred to separate session)
+
+---
+## 2026-05-20 | Session: Page co-location restructure + workflow updates
+Worked on: Restructure src/ into pages/ and common/, update workflow and docs
+Completed:
+- Updated .pi/prompts/init-session.md and docs/WORKFLOW.md: dropped old step 4 (pick from features.json), added Jira epic story selection flow, swapped Feature Dev steps 1 and 2 (Branch before Plan), removed duplicate startup sequence from WORKFLOW.md
+- Created features.json entry for SRVOCF-845, branch 031-refactor-page-colocation, draft PR #31
+- Moved all shared code to src/common/ (services, utils, context, UserAvatar)
+- Moved pages to src/pages/function-list/, function-create/, function-edit/ with components/ subdirs
+- Extracted EditToolbar and LeaveModal from FunctionEditPage into separate files
+- Updated package.json exposedModules paths
+- Updated ARCHITECTURE.md with co-location convention and ownership rule
+- Updated TESTING.md: component vs. page test rules, Vitest/MSW migration, updated file conventions
+- 13 suites, 112 tests passing, zero lint errors, webpack builds clean
+Left off: Three follow-up items for next day.
+Blockers: oc login not accessible from agent sandbox (permission denied on ~/.kube/config)
+
+---
 ## 2026-05-18 | Session: Error server and JSON error responses
 Worked on: Errserver for failed Go compilation, JSON error responses for backend
 Completed:

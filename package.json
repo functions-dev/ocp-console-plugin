@@ -17,6 +17,7 @@
     "test": "vitest run",
     "i18n": "./i18n-scripts/build-i18n.sh && node ./i18n-scripts/set-english-defaults.js",
     "lint": "yarn eslint src integration-tests --fix && stylelint 'src/**/*.css' --allow-empty-input --fix",
+    "ci": "yarn lint && yarn test && yarn build",
     "test-cypress": "cd integration-tests && cypress open",
     "test-cypress-headless": "cd integration-tests && node --max-old-space-size=4096 ../node_modules/.bin/cypress run --browser ${BRIDGE_E2E_BROWSER_NAME:-electron}",
     "cypress-merge": "mochawesome-merge ./integration-tests/screenshots/cypress_report*.json > ./integration-tests/screenshots/cypress.json",
@@ -89,9 +90,9 @@
     "displayName": "Serverless Functions",
     "description": "A Functions-as-a-Service PoC UI for the OpenShift Web Console. Developers create, edit, and deploy serverless functions without CLI knowledge.",
     "exposedModules": {
-      "FunctionsListPage": "./views/FunctionsListPage",
-      "FunctionCreatePage": "./views/FunctionCreatePage",
-      "FunctionEditPage": "./views/FunctionEditPage"
+      "FunctionsListPage": "./pages/function-list/FunctionsListPage",
+      "FunctionCreatePage": "./pages/function-create/FunctionCreatePage",
+      "FunctionEditPage": "./pages/function-edit/FunctionEditPage"
     },
     "dependencies": {
       "@console/pluginAPI": ">=4.19.0"

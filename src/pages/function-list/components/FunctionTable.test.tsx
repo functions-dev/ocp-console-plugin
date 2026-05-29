@@ -24,10 +24,6 @@ vi.mock('@patternfly/react-icons', () => ({
   TrashIcon: () => 'DeleteIcon',
 }));
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 const mockDeployment = {
   apiVersion: 'apps/v1',
   kind: 'Deployment',
@@ -58,6 +54,10 @@ const mockFunctions: FunctionTableItem[] = [
 ];
 
 describe('FunctionTable', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders a row for each function', () => {
     render(
       <MemoryRouter>
