@@ -3,16 +3,16 @@ import { Alert, PageSection } from '@patternfly/react-core';
 import { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom-v5-compat';
-import { CreateFunctionForm, CreateFunctionFormData } from '../components/CreateFunctionForm';
-import { UserAvatar } from '../components/UserAvatar';
+import { CreateFunctionForm, CreateFunctionFormData } from './components/CreateFunctionForm';
+import { UserAvatar } from '../../common/components/UserAvatar';
 import {
   ForgeConnectionContext,
   ForgeConnectionProvider,
-} from '../context/ForgeConnectionProvider';
-import { useClusterService } from '../services/cluster/useClusterService';
-import { useFunctionService } from '../services/function/useFunctionService';
-import { useSourceControlService } from '../services/source-control/useSourceControlService';
-import { errorMessage } from '../utils/utils';
+} from '../../common/context/ForgeConnectionProvider';
+import { useClusterService } from '../../common/services/cluster/useClusterService';
+import { useFunctionService } from '../../common/services/function/useFunctionService';
+import { useSourceControlService } from '../../common/services/source-control/useSourceControlService';
+import { errorMessage } from '../../common/utils/utils';
 
 export default function FunctionCreatePage() {
   return (

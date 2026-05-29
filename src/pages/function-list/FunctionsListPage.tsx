@@ -14,17 +14,17 @@ import {
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom-v5-compat';
-import { FunctionsEmptyState } from '../components/EmptyState';
-import { FunctionStatus, FunctionTable, FunctionTableItem } from '../components/FunctionTable';
-import { UserAvatar } from '../components/UserAvatar';
+import { FunctionsEmptyState } from './components/EmptyState';
+import { FunctionStatus, FunctionTable, FunctionTableItem } from './components/FunctionTable';
+import { UserAvatar } from '../../common/components/UserAvatar';
 import {
   ForgeConnectionContext,
   ForgeConnectionProvider,
-} from '../context/ForgeConnectionProvider';
-import { useClusterService } from '../services/cluster/useClusterService';
-import { useSourceControlService } from '../services/source-control/useSourceControlService';
-import { RepoMetadata } from '../services/types';
-import { errorMessage, parseNamespaceAndRuntime } from '../utils/utils';
+} from '../../common/context/ForgeConnectionProvider';
+import { useClusterService } from '../../common/services/cluster/useClusterService';
+import { useSourceControlService } from '../../common/services/source-control/useSourceControlService';
+import { RepoMetadata } from '../../common/services/types';
+import { errorMessage, parseNamespaceAndRuntime } from '../../common/utils/utils';
 
 export default function FunctionsListPage() {
   return (

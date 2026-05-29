@@ -158,24 +158,26 @@
   },
   {
     "category": "functional",
-    "description": "Function List Page shows deployed functions from all user-accessible namespaces without requiring a PAT",
-    "steps": [
-      "ClusterService refactored: remove ALL_NAMESPACES and useActiveNamespace logic, always watch across all user-accessible namespaces (functions in GitHub repos can target different namespaces via func.yaml, so single-namespace view is not useful; filtering deferred to a later feature)",
-      "ClusterService lists all namespaces/projects accessible to the logged-in user and watches Deployments with label function.knative.dev/name across all of them",
-      "Function List Page renders deployed functions even when no PAT has been entered (PatModal dismissed or not yet shown)",
-      "When PAT is later provided, repo data from SourceControlService is merged with already-visible deployed functions",
-      "Deployed functions without a matching repo still appear in the table with available cluster data (name, namespace, status, replicas, url)"
-    ],
-    "passes": false
-  },
-  {
-    "category": "functional",
     "description": "Set GitHub Secret (KUBECONFIG) on created function repos so GH Actions can deploy to the cluster",
     "steps": [
       "Add createSecret method to SourceControlService interface",
       "Encrypt secret value with repo public key using tweetnacl or libsodium.js",
       "Wire into create flow: set KUBECONFIG secret before push so the workflow has credentials from the first run",
       "GH Actions workflow can authenticate to the cluster and run func deploy"
+    ],
+    "passes": true
+  },
+  {
+    "category": "technical",
+    "description": "Restructure project so page-specific components and hooks live close to their page, not in a shared /components directory",
+    "steps": [
+      "Evaluate co-location strategy (inline, page folder, or hybrid) and document the chosen convention",
+      "Move CreateFunctionForm (+ test) into FunctionCreatePage directory (only used by CreatePage)",
+      "Move FileTreeView (+ test) into FunctionEditPage directory (only used by EditPage)",
+      "Move FunctionTable (+ test) into FunctionListPage directory (only used by ListPage)",
+      "Verify shared components stay in /components: EmptyState (used by ListPage and EditPage), UserAvatar (used by all 3 pages)",
+      "Update docs/ARCHITECTURE.md with the chosen co-location convention",
+      "All tests pass, no broken imports"
     ],
     "passes": true
   }

@@ -1,4 +1,4 @@
-import { Language } from '@patternfly/react-code-editor';
+import type { Language } from '@patternfly/react-code-editor';
 
 const extensionMap: Record<string, string> = {
   js: 'javascript',
@@ -30,7 +30,7 @@ export function getLanguageFromPath(path: string): Language {
   if (filenameMap[filename]) return filenameMap[filename] as Language;
 
   const ext = filename.split('.').pop() ?? '';
-  return (extensionMap[ext] as Language) ?? Language.plaintext;
+  return (extensionMap[ext] ?? 'plaintext') as Language;
 }
 
 export function parseNamespaceAndRuntime(funcYaml: string): {

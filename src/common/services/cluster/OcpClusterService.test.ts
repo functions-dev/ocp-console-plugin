@@ -9,21 +9,13 @@ vi.mock('@openshift-console/dynamic-plugin-sdk', () => {
   return { consoleFetchJSON: fn };
 });
 
-beforeEach(() => {
-  (window as unknown as Record<string, unknown>).SERVER_FLAGS = {
-    kubeAPIServerURL: 'https://api.cluster.example.com:6443',
-  };
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
-  delete (window as unknown as Record<string, unknown>).SERVER_FLAGS;
-});
-
 describe('OcpClusterService', () => {
   const namespace = 'my-ns';
 
   beforeEach(() => {
+    (window as unknown as Record<string, unknown>).SERVER_FLAGS = {
+      kubeAPIServerURL: 'https://api.cluster.example.com:6443',
+    };
     // POST calls: SA, Role, RoleBinding, ImageBuilderBinding, TokenRequest
     mockPost
       .mockResolvedValueOnce({})
@@ -31,6 +23,11 @@ describe('OcpClusterService', () => {
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({ status: { token: 'sa-token-value' } });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+    delete (window as unknown as Record<string, unknown>).SERVER_FLAGS;
   });
 
   it('creates SA, Role, RoleBinding, gets token, and returns kubeconfig', async () => {

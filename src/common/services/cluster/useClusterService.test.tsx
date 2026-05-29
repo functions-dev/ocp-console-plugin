@@ -7,10 +7,6 @@ vi.mock('@openshift-console/dynamic-plugin-sdk', () => ({
   useK8sWatchResource: (...args: unknown[]) => mockUseK8sWatchResource(...args),
 }));
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 const mockKsvc = {
   apiVersion: 'serving.knative.dev/v1',
   kind: 'Service',
@@ -64,6 +60,10 @@ function TestConsumer({ functionNames = [] }: { functionNames?: string[] }) {
 }
 
 describe('useClusterService', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('passes null config when function names are empty', () => {
     mockUseK8sWatchResource.mockReturnValue([[], true, null]);
 

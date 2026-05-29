@@ -2,23 +2,14 @@
 
 ## Startup Sequence
 
-Every session, before doing any work:
-
-1. `pwd` — confirm working directory
-2. Read `docs/claude-progress.txt` + `git log --oneline -10` — orient
-3. Read `docs/agent-struggles.json` — if unresolved entries exist, present to user
-4. Read `docs/features.json` — pick first `"passes": false` entry
-5. Run `./init.sh` — start dev env
-6. Read `.dev-env.json` — note the dev server ports (backend, plugin, console)
-7. Run tests — verify app is healthy
-8. If broken → fix first. If clean → start [Feature Development Sequence](#feature-development-sequence).
+Handled by the `init-session` command (`.claude/commands/init-session.md`).
 
 ## Feature Development Sequence
 
 After [Startup Sequence](#startup-sequence), work through the picked feature:
 
-1. **Plan** — read `docs/ARCHITECTURE.md` + `docs/STYLEGUIDE.md` + `docs/TESTING.md`, then use `/brainstorming` to design the chosen feature from `docs/features.json`, then use `/writing-plans` to create implementation plan → `docs/plans/active/<NNN>-<type>-<short-name>.md`
-2. **Branch** — create feature branch per [Branching](#branching) convention. Immediately push and open a **draft PR** (`gh pr create --draft`) to reserve the PR number for other contributors' branch numbering.
+1. **Branch** — create feature branch per [Branching](#branching) convention. Immediately push and open a **draft PR** (`gh pr create --draft`) to reserve the PR number for other contributors' branch numbering.
+2. **Plan** — read `docs/ARCHITECTURE.md` + `docs/STYLEGUIDE.md` + `docs/TESTING.md`, then use `/brainstorming` to design the chosen feature from `docs/features.json`, then use `/writing-plans` to create implementation plan → `docs/plans/active/<NNN>-<type>-<short-name>.md`
 3. **Implement** — using `/executing-plans` skill
 4. **Review** — code review using `/requesting-code-review` skill, fix found issues
 5. **Manual Test** — use browser automation and validate it works in the browser

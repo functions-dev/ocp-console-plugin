@@ -6,11 +6,11 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 describe('FunctionsEmptyState', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders a heading with "No functions found"', () => {
     render(
       <MemoryRouter>
