@@ -5,10 +5,15 @@ import { OcpClusterService } from './OcpClusterService';
 const instance = new OcpClusterService();
 
 const FUNCTION_NAME_LABEL = 'function.knative.dev/name';
+const REVISION_LABEL = 'serving.knative.dev/revision';
+
+export interface ClusterFunctionInfo {
+  knativeService: K8sResourceKind;
+  deployment: K8sResourceKind | undefined;
+}
 
 interface ClusterService {
-  knativeServices: K8sResourceKind[];
-  deployments: K8sResourceKind[];
+  functions: Record<string, ClusterFunctionInfo>;
   loaded: boolean;
   error: unknown;
   generateKubeconfig: (namespace: string) => Promise<string>;
@@ -50,10 +55,33 @@ export function useClusterService(functionNames: string[] = []): ClusterService 
   const [knSvcs, knLoaded, knError] = useK8sWatchResource<K8sResourceKind[]>(knSvcConfig);
   const [deps, depLoaded, depError] = useK8sWatchResource<K8sResourceKind[]>(depConfig);
 
+  const loaded = knLoaded && depLoaded;
+
+  const functions = useMemo(() => {
+    if (!loaded) return {};
+
+    const knativeServices = knSvcs ?? [];
+    const deployments = deps ?? [];
+    const record: Record<string, ClusterFunctionInfo> = {};
+
+    for (const ksvc of knativeServices) {
+      const name = ksvc.metadata?.labels?.[FUNCTION_NAME_LABEL];
+      if (!name) continue;
+
+      const latestRevision = ksvc.status?.latestReadyRevisionName;
+      const deployment = latestRevision
+        ? deployments.find((d) => d.metadata?.labels?.[REVISION_LABEL] === latestRevision)
+        : deployments.find((d) => d.metadata?.labels?.[FUNCTION_NAME_LABEL] === name);
+
+      record[name] = { knativeService: ksvc, deployment };
+    }
+
+    return record;
+  }, [loaded, knSvcs, deps]);
+
   return {
-    knativeServices: knLoaded ? (knSvcs ?? []) : [],
-    deployments: depLoaded ? (deps ?? []) : [],
-    loaded: knLoaded && depLoaded,
+    functions,
+    loaded,
     error: knError || depError,
     generateKubeconfig: instance.generateKubeconfig.bind(instance),
   };

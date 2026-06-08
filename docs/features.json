@@ -180,5 +180,17 @@
       "All tests pass, no broken imports"
     ],
     "passes": true
+  },
+  {
+    "category": "technical",
+    "description": "useClusterService: fix resource coupling and improve tests. Merge separate ksvc/deployment arrays into a correlated Record, move revision-matching into the hook, rename misleading field, expand test coverage.",
+    "steps": [
+      "Merge useClusterService return type into Record<string, ClusterFunctionInfo>",
+      "Move revision-based correlation logic into the hook",
+      "Rename deployment field to knativeService on FunctionTableItem",
+      "Add tests for error propagation, co-presence, missing deployment, revision matching",
+      "All tests pass, no broken imports, build clean"
+    ],
+    "passes": true
   }
 ]

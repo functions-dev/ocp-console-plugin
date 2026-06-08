@@ -24,13 +24,18 @@ vi.mock('@patternfly/react-icons', () => ({
   TrashIcon: () => 'DeleteIcon',
 }));
 
-const mockDeployment = {
-  apiVersion: 'apps/v1',
-  kind: 'Deployment',
+const mockKnativeService = {
+  apiVersion: 'serving.knative.dev/v1',
+  kind: 'Service',
   metadata: {
     name: 'my-func',
     namespace: 'demo',
     labels: { 'function.knative.dev/name': 'my-func' },
+  },
+  status: {
+    url: 'http://my-func.demo.svc',
+    latestReadyRevisionName: 'my-func-00001',
+    conditions: [{ type: 'Ready', status: 'True' }],
   },
 };
 
@@ -42,7 +47,7 @@ const mockFunctions: FunctionTableItem[] = [
     url: 'http://my-func.demo.svc',
     replicas: 1,
     namespace: 'demo',
-    deployment: mockDeployment,
+    knativeService: mockKnativeService,
   },
   {
     name: 'idle-func',
@@ -141,7 +146,7 @@ describe('FunctionTable', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     expect(mockLauncher).toHaveBeenCalled();
     expect(mockUseDeleteModal).toHaveBeenCalledWith(
-      mockDeployment,
+      mockKnativeService,
       undefined,
       undefined,
       'Undeploy',

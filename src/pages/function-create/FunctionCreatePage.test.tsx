@@ -37,8 +37,7 @@ vi.mock('../../common/services/source-control/useSourceControlService', () => ({
 
 vi.mock('../../common/services/cluster/useClusterService', () => ({
   useClusterService: () => ({
-    knativeServices: [],
-    deployments: [],
+    functions: {},
     loaded: true,
     error: undefined,
     generateKubeconfig: mockGenerateKubeconfig,

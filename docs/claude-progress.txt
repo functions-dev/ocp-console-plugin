@@ -2,6 +2,24 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-06-08 | Session: useClusterService resource coupling fix (SRVOCF-841 item 1)
+Worked on: Merge separate knativeServices/deployments arrays into correlated Record, fix naming bug, improve tests
+Completed:
+- Changed useClusterService return type from { knativeServices[], deployments[] } to { functions: Record<string, ClusterFunctionInfo> }
+- Moved revision-based correlation logic (latestReadyRevisionName matching) from FunctionsListPage into the hook's useMemo
+- Renamed misleading `deployment` field to `knativeService` on FunctionTableItem (the field held a Knative Service, not a Deployment)
+- Fixed FunctionTable.test.tsx fixture from Deployment object to actual Knative Service object
+- Simplified FunctionsListPage merge memo from 11-line find/match to 3-line record lookup
+- Added 4 new hook tests: error propagation, co-presence pairing, ksvc without deployment, revision-based matching
+- Added ownerReferences to deployment fixtures (documents Knative ownership chain)
+- Removed "picks latest revision" test from FunctionsListPage (logic moved to hook, tested there)
+- Updated FunctionCreatePage test mock to match new return shape
+- Fixed react-hooks/exhaustive-deps lint warnings by moving conditionals inside useMemo
+- 14 suites, 129 tests passing, zero lint errors
+Left off: Changes ready for commit on branch cleanup-cluster-svc.
+Blockers: None
+
+---
 ## 2026-05-21 | Session: Page co-location restructure (continued)
 Worked on: Follow-up fixes from review, test cleanup, docs
 Completed:

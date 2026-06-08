@@ -32,28 +32,35 @@ const mockDeployment = {
       'function.knative.dev/name': 'my-func',
       'serving.knative.dev/revision': 'my-func-00001',
     },
+    ownerReferences: [
+      {
+        apiVersion: 'serving.knative.dev/v1',
+        kind: 'Revision',
+        name: 'my-func-00001',
+        uid: 'rev-uid-001',
+        controller: true,
+        blockOwnerDeletion: true,
+      },
+    ],
   },
   spec: { replicas: 1 },
   status: { readyReplicas: 1 },
 };
 
 function TestConsumer({ functionNames = [] }: { functionNames?: string[] }) {
-  const { knativeServices, deployments, loaded, error } = useClusterService(functionNames);
+  const { functions, loaded, error } = useClusterService(functionNames);
+  const entries = Object.entries(functions);
   return (
     <>
       <span data-testid="loaded">{String(loaded)}</span>
       <span data-testid="error">{String(error)}</span>
-      <span data-testid="ksvc-count">{knativeServices.length}</span>
-      <span data-testid="dep-count">{deployments.length}</span>
-      {knativeServices.map((s) => (
-        <span key={s.metadata?.name} data-testid="ksvc">
-          {s.metadata?.name}
-        </span>
-      ))}
-      {deployments.map((d) => (
-        <span key={d.metadata?.name} data-testid="deployment">
-          {d.metadata?.name}
-        </span>
+      <span data-testid="fn-count">{entries.length}</span>
+      {entries.map(([name, info]) => (
+        <div key={name} data-testid="fn-entry">
+          <span data-testid="fn-name">{name}</span>
+          <span data-testid="fn-ksvc">{info.knativeService.metadata?.name}</span>
+          <span data-testid="fn-dep">{info.deployment?.metadata?.name ?? 'none'}</span>
+        </div>
       ))}
     </>
   );
@@ -71,8 +78,7 @@ describe('useClusterService', () => {
 
     expect(mockUseK8sWatchResource).toHaveBeenCalledWith(null);
     expect(screen.getByTestId('loaded')).toHaveTextContent('true');
-    expect(screen.getByTestId('ksvc-count')).toHaveTextContent('0');
-    expect(screen.getByTestId('dep-count')).toHaveTextContent('0');
+    expect(screen.getByTestId('fn-count')).toHaveTextContent('0');
   });
 
   it('watches Knative Services with In selector for given function names', () => {
@@ -91,13 +97,13 @@ describe('useClusterService', () => {
         ],
       },
     });
-    expect(screen.getByTestId('ksvc-count')).toHaveTextContent('1');
-    expect(screen.getByTestId('ksvc')).toHaveTextContent('my-func');
+    expect(screen.getByTestId('fn-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('fn-ksvc')).toHaveTextContent('my-func');
   });
 
   it('watches Deployments with In selector for given function names', () => {
     mockUseK8sWatchResource
-      .mockReturnValueOnce([[], true, null])
+      .mockReturnValueOnce([[mockKsvc], true, null])
       .mockReturnValueOnce([[mockDeployment], true, null]);
 
     render(<TestConsumer functionNames={['my-func']} />);
@@ -111,11 +117,10 @@ describe('useClusterService', () => {
         ],
       },
     });
-    expect(screen.getByTestId('dep-count')).toHaveTextContent('1');
-    expect(screen.getByTestId('deployment')).toHaveTextContent('my-func-00001-deployment');
+    expect(screen.getByTestId('fn-dep')).toHaveTextContent('my-func-00001-deployment');
   });
 
-  it('returns empty arrays when not loaded', () => {
+  it('returns empty record when not loaded', () => {
     mockUseK8sWatchResource
       .mockReturnValueOnce([[], false, null])
       .mockReturnValueOnce([[], false, null]);
@@ -123,7 +128,70 @@ describe('useClusterService', () => {
     render(<TestConsumer functionNames={['my-func']} />);
 
     expect(screen.getByTestId('loaded')).toHaveTextContent('false');
-    expect(screen.getByTestId('ksvc-count')).toHaveTextContent('0');
-    expect(screen.getByTestId('dep-count')).toHaveTextContent('0');
+    expect(screen.getByTestId('fn-count')).toHaveTextContent('0');
+  });
+
+  it('propagates deployment watch error', () => {
+    mockUseK8sWatchResource
+      .mockReturnValueOnce([[], true, null])
+      .mockReturnValueOnce([[], true, new Error('forbidden')]);
+
+    render(<TestConsumer functionNames={['my-func']} />);
+
+    expect(screen.getByTestId('error')).toHaveTextContent('Error: forbidden');
+  });
+
+  it('pairs ksvc and deployment together by revision', () => {
+    mockUseK8sWatchResource
+      .mockReturnValueOnce([[mockKsvc], true, null])
+      .mockReturnValueOnce([[mockDeployment], true, null]);
+
+    render(<TestConsumer functionNames={['my-func']} />);
+
+    expect(screen.getByTestId('fn-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('fn-ksvc')).toHaveTextContent('my-func');
+    expect(screen.getByTestId('fn-dep')).toHaveTextContent('my-func-00001-deployment');
+  });
+
+  it('returns undefined deployment when ksvc has no matching deployment', () => {
+    mockUseK8sWatchResource
+      .mockReturnValueOnce([[mockKsvc], true, null])
+      .mockReturnValueOnce([[], true, null]);
+
+    render(<TestConsumer functionNames={['my-func']} />);
+
+    expect(screen.getByTestId('fn-count')).toHaveTextContent('1');
+    expect(screen.getByTestId('fn-dep')).toHaveTextContent('none');
+  });
+
+  it('picks deployment matching the latest ready revision', () => {
+    const ksvcRev2 = {
+      ...mockKsvc,
+      status: {
+        ...mockKsvc.status,
+        latestReadyRevisionName: 'my-func-00002',
+      },
+    };
+    const oldDep = mockDeployment;
+    const newDep = {
+      ...mockDeployment,
+      metadata: {
+        ...mockDeployment.metadata,
+        name: 'my-func-00002-deployment',
+        labels: {
+          'function.knative.dev/name': 'my-func',
+          'serving.knative.dev/revision': 'my-func-00002',
+        },
+      },
+      status: { readyReplicas: 2 },
+    };
+
+    mockUseK8sWatchResource
+      .mockReturnValueOnce([[ksvcRev2], true, null])
+      .mockReturnValueOnce([[oldDep, newDep], true, null]);
+
+    render(<TestConsumer functionNames={['my-func']} />);
+
+    expect(screen.getByTestId('fn-dep')).toHaveTextContent('my-func-00002-deployment');
   });
 });
