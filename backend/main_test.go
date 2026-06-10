@@ -1,0 +1,198 @@
+package main
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/json"
+	"encoding/pem"
+	"math/big"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+// newTestCA generates a self-signed CA certificate and returns the PEM bytes,
+// the parsed certificate, and the private key.
+func newTestCA(t *testing.T) ([]byte, *x509.Certificate, *ecdsa.PrivateKey) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "Test CA"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := x509.ParseCertificate(certDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	return pemBytes, cert, key
+}
+
+// newTestLeafCert creates a leaf certificate signed by the given CA.
+func newTestLeafCert(t *testing.T, ca *x509.Certificate, caKey *ecdsa.PrivateKey) tls.Certificate {
+	t.Helper()
+	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "localhost"},
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1)},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, ca, &leafKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tls.Certificate{
+		Certificate: [][]byte{certDER},
+		PrivateKey:  leafKey,
+	}
+}
+
+// writeCAFile writes PEM data to a temp file and sets saCAPath to it.
+// It restores the original saCAPath on cleanup.
+func writeCAFile(t *testing.T, pemData []byte) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ca.crt")
+	if err := os.WriteFile(path, pemData, 0644); err != nil {
+		t.Fatal(err)
+	}
+	orig := saCAPath
+	saCAPath = path
+	t.Cleanup(func() { saCAPath = orig })
+}
+
+func TestHandleClusterCA_MissingServerParam(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/cluster/ca", nil)
+	w := httptest.NewRecorder()
+
+	handleClusterCA(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+	var body map[string]string
+	json.NewDecoder(w.Body).Decode(&body)
+	if body["message"] == "" {
+		t.Error("expected error message in response")
+	}
+}
+
+func TestHandleClusterCA_NonHTTPS(t *testing.T) {
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server=http://example.com", nil)
+	w := httptest.NewRecorder()
+
+	handleClusterCA(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestHandleClusterCA_MissingCAFile(t *testing.T) {
+	orig := saCAPath
+	saCAPath = "/nonexistent/path/ca.crt"
+	t.Cleanup(func() { saCAPath = orig })
+
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server=https://example.com", nil)
+	w := httptest.NewRecorder()
+
+	handleClusterCA(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+	var body map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&body)
+	if body["ca"] != nil {
+		t.Errorf("expected ca to be null, got %v", body["ca"])
+	}
+}
+
+func TestHandleClusterCA_CAMatchesServer(t *testing.T) {
+	caPEM, caCert, caKey := newTestCA(t)
+	leafCert := newTestLeafCert(t, caCert, caKey)
+
+	// Start a TLS server using the leaf cert signed by our CA.
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	writeCAFile(t, caPEM)
+
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
+	w := httptest.NewRecorder()
+
+	handleClusterCA(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&body)
+	if body["ca"] == nil {
+		t.Fatal("expected ca to be a base64 string, got null")
+	}
+	caVal, ok := body["ca"].(string)
+	if !ok || caVal == "" {
+		t.Fatalf("expected non-empty ca string, got %v", body["ca"])
+	}
+}
+
+func TestHandleClusterCA_CADoesNotMatchServer(t *testing.T) {
+	// Create one CA for the server cert.
+	_, serverCACert, serverCAKey := newTestCA(t)
+	leafCert := newTestLeafCert(t, serverCACert, serverCAKey)
+
+	// Create a different CA that we'll give to the handler.
+	differentCAPEM, _, _ := newTestCA(t)
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	writeCAFile(t, differentCAPEM)
+
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
+	w := httptest.NewRecorder()
+
+	handleClusterCA(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&body)
+	if body["ca"] != nil {
+		t.Errorf("expected ca to be null when CA doesn't match, got %v", body["ca"])
+	}
+}

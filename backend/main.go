@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -12,10 +16,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	cigithub "knative.dev/func/pkg/ci/github"
 	"knative.dev/func/pkg/functions"
@@ -38,6 +44,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/function/create", handleFuncCreate)
+	mux.HandleFunc("GET /api/cluster/ca", handleClusterCA)
 	mux.Handle("/", http.FileServer(http.FS(static)))
 
 	handler := loggingMiddleware(mux)
@@ -216,6 +223,80 @@ func handleFuncCreate(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(files); err != nil {
 		log.Printf("failed to encode response: %v", err)
 	}
+}
+
+// saCAPath is the path to the service account CA certificate.
+// It is a variable so tests can override it.
+var saCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+func handleClusterCA(w http.ResponseWriter, r *http.Request) {
+	serverParam := r.URL.Query().Get("server")
+	if serverParam == "" {
+		jsonError(w, "missing required query parameter: server", http.StatusBadRequest)
+		return
+	}
+
+	parsed, err := url.Parse(serverParam)
+	if err != nil || parsed.Scheme != "https" {
+		jsonError(w, "server must be an HTTPS URL", http.StatusBadRequest)
+		return
+	}
+
+	host := parsed.Host
+	if parsed.Port() == "" {
+		host = host + ":443"
+	}
+
+	caPEM, err := os.ReadFile(saCAPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
+			return
+		}
+		jsonError(w, "failed to read CA file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	pool := x509.NewCertPool()
+	rest := caPEM
+	var found bool
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type == "CERTIFICATE" {
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				jsonError(w, "failed to parse CA certificate: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			pool.AddCert(cert)
+			found = true
+		}
+	}
+	if !found {
+		jsonError(w, "no valid certificates found in CA file", http.StatusInternalServerError)
+		return
+	}
+
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	conn, err := tls.DialWithDialer(dialer, "tcp", host, &tls.Config{
+		RootCAs: pool,
+	})
+	if err != nil {
+		// TLS verification failed, the CA does not match the server cert.
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
+		return
+	}
+	conn.Close()
+
+	encoded := base64.StdEncoding.EncodeToString(caPEM)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"ca": encoded})
 }
 
 const ocpInternalRegistry = "image-registry.openshift-image-registry.svc:5000/"
