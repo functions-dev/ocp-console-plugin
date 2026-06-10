@@ -34,6 +34,7 @@ func main() {
 	httpsPort := flag.Int("https-port", 8443, "HTTPS server port")
 	certFile := flag.String("cert", "/var/cert/tls.crt", "TLS certificate file")
 	keyFile := flag.String("key", "/var/cert/tls.key", "TLS key file")
+	caPath := flag.String("kube-root-ca-path", defaultCAPath, "path to CA certificate for cluster TLS probe")
 	flag.Parse()
 
 	static, err := fs.Sub(staticFiles, "static")
@@ -43,7 +44,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/function/create", handleFuncCreate)
-	mux.Handle("GET /api/cluster/ca", &clusterCAHandler{CAPath: defaultCAPath})
+	mux.Handle("GET /api/cluster/ca", &clusterCAHandler{CAPath: *caPath})
 	mux.Handle("/", http.FileServer(http.FS(static)))
 
 	handler := loggingMiddleware(mux)
