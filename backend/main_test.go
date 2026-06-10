@@ -75,25 +75,23 @@ func newTestLeafCert(t *testing.T, ca *x509.Certificate, caKey *ecdsa.PrivateKey
 	}
 }
 
-// writeCAFile writes PEM data to a temp file and sets saCAPath to it.
-// It restores the original saCAPath on cleanup.
-func writeCAFile(t *testing.T, pemData []byte) {
+// writeCAFile writes PEM data to a temp file and returns its path.
+func writeCAFile(t *testing.T, pemData []byte) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "ca.crt")
 	if err := os.WriteFile(path, pemData, 0644); err != nil {
 		t.Fatal(err)
 	}
-	orig := saCAPath
-	saCAPath = path
-	t.Cleanup(func() { saCAPath = orig })
+	return path
 }
 
-func TestHandleClusterCA_MissingServerParam(t *testing.T) {
+func TestClusterCAHandler_MissingServerParam(t *testing.T) {
+	h := &clusterCAHandler{CAPath: "/nonexistent"}
 	req := httptest.NewRequest("GET", "/api/cluster/ca", nil)
 	w := httptest.NewRecorder()
 
-	handleClusterCA(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
@@ -105,26 +103,24 @@ func TestHandleClusterCA_MissingServerParam(t *testing.T) {
 	}
 }
 
-func TestHandleClusterCA_NonHTTPS(t *testing.T) {
+func TestClusterCAHandler_NonHTTPS(t *testing.T) {
+	h := &clusterCAHandler{CAPath: "/nonexistent"}
 	req := httptest.NewRequest("GET", "/api/cluster/ca?server=http://example.com", nil)
 	w := httptest.NewRecorder()
 
-	handleClusterCA(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", w.Code)
 	}
 }
 
-func TestHandleClusterCA_MissingCAFile(t *testing.T) {
-	orig := saCAPath
-	saCAPath = "/nonexistent/path/ca.crt"
-	t.Cleanup(func() { saCAPath = orig })
-
+func TestClusterCAHandler_MissingCAFile(t *testing.T) {
+	h := &clusterCAHandler{CAPath: "/nonexistent/path/ca.crt"}
 	req := httptest.NewRequest("GET", "/api/cluster/ca?server=https://example.com", nil)
 	w := httptest.NewRecorder()
 
-	handleClusterCA(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", w.Code)
@@ -136,9 +132,9 @@ func TestHandleClusterCA_MissingCAFile(t *testing.T) {
 	}
 }
 
-// TestHandleClusterCA_PublicCA verifies that when the server's cert is trusted
+// TestClusterCAHandler_PublicCA verifies that when the server's cert is trusted
 // by system roots (probe 1), null is returned even if a CA file is present.
-func TestHandleClusterCA_PublicCA(t *testing.T) {
+func TestClusterCAHandler_PublicCA(t *testing.T) {
 	caPEM, caCert, caKey := newTestCA(t)
 	leafCert := newTestLeafCert(t, caCert, caKey)
 
@@ -150,20 +146,18 @@ func TestHandleClusterCA_PublicCA(t *testing.T) {
 	// Inject the CA into "system roots" so probe 1 succeeds.
 	pool := x509.NewCertPool()
 	pool.AppendCertsFromPEM(caPEM)
-	orig := systemTLSConfig
-	systemTLSConfig = func() *tls.Config {
-		return &tls.Config{RootCAs: pool}
-	}
-	t.Cleanup(func() { systemTLSConfig = orig })
 
-	// Write the same CA to the SA file. If probe 1 works correctly,
-	// the handler returns null without ever reaching probe 2.
-	writeCAFile(t, caPEM)
+	h := &clusterCAHandler{
+		CAPath: writeCAFile(t, caPEM),
+		SystemTLS: func() *tls.Config {
+			return &tls.Config{RootCAs: pool}
+		},
+	}
 
 	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
 	w := httptest.NewRecorder()
 
-	handleClusterCA(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -175,10 +169,10 @@ func TestHandleClusterCA_PublicCA(t *testing.T) {
 	}
 }
 
-// TestHandleClusterCA_PrivateCA verifies the two-probe logic for a private CA:
+// TestClusterCAHandler_PrivateCA verifies the two-probe logic for a private CA:
 // probe 1 (system roots) fails because the test CA is self-signed, then
 // probe 2 (SA bundle) succeeds because the CA matches the server cert.
-func TestHandleClusterCA_PrivateCA(t *testing.T) {
+func TestClusterCAHandler_PrivateCA(t *testing.T) {
 	caPEM, caCert, caKey := newTestCA(t)
 	leafCert := newTestLeafCert(t, caCert, caKey)
 
@@ -187,12 +181,12 @@ func TestHandleClusterCA_PrivateCA(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	writeCAFile(t, caPEM)
+	h := &clusterCAHandler{CAPath: writeCAFile(t, caPEM)}
 
 	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
 	w := httptest.NewRecorder()
 
-	handleClusterCA(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -208,9 +202,9 @@ func TestHandleClusterCA_PrivateCA(t *testing.T) {
 	}
 }
 
-// TestHandleClusterCA_BundleMismatch verifies that when neither system roots
+// TestClusterCAHandler_BundleMismatch verifies that when neither system roots
 // nor the SA bundle can verify the server, null is returned.
-func TestHandleClusterCA_BundleMismatch(t *testing.T) {
+func TestClusterCAHandler_BundleMismatch(t *testing.T) {
 	// Create one CA for the server cert.
 	_, serverCACert, serverCAKey := newTestCA(t)
 	leafCert := newTestLeafCert(t, serverCACert, serverCAKey)
@@ -223,12 +217,12 @@ func TestHandleClusterCA_BundleMismatch(t *testing.T) {
 	ts.StartTLS()
 	defer ts.Close()
 
-	writeCAFile(t, differentCAPEM)
+	h := &clusterCAHandler{CAPath: writeCAFile(t, differentCAPEM)}
 
 	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
 	w := httptest.NewRecorder()
 
-	handleClusterCA(w, req)
+	h.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
