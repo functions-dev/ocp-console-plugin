@@ -136,11 +136,52 @@ func TestHandleClusterCA_MissingCAFile(t *testing.T) {
 	}
 }
 
-func TestHandleClusterCA_CAMatchesServer(t *testing.T) {
+// TestHandleClusterCA_PublicCA verifies that when the server's cert is trusted
+// by system roots (probe 1), null is returned even if a CA file is present.
+func TestHandleClusterCA_PublicCA(t *testing.T) {
 	caPEM, caCert, caKey := newTestCA(t)
 	leafCert := newTestLeafCert(t, caCert, caKey)
 
-	// Start a TLS server using the leaf cert signed by our CA.
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	// Inject the CA into "system roots" so probe 1 succeeds.
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(caPEM)
+	orig := systemTLSConfig
+	systemTLSConfig = func() *tls.Config {
+		return &tls.Config{RootCAs: pool}
+	}
+	t.Cleanup(func() { systemTLSConfig = orig })
+
+	// Write the same CA to the SA file. If probe 1 works correctly,
+	// the handler returns null without ever reaching probe 2.
+	writeCAFile(t, caPEM)
+
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
+	w := httptest.NewRecorder()
+
+	handleClusterCA(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&body)
+	if body["ca"] != nil {
+		t.Errorf("expected ca to be null for publicly trusted cert, got %v", body["ca"])
+	}
+}
+
+// TestHandleClusterCA_PrivateCA verifies the two-probe logic for a private CA:
+// probe 1 (system roots) fails because the test CA is self-signed, then
+// probe 2 (SA bundle) succeeds because the CA matches the server cert.
+func TestHandleClusterCA_PrivateCA(t *testing.T) {
+	caPEM, caCert, caKey := newTestCA(t)
+	leafCert := newTestLeafCert(t, caCert, caKey)
+
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
 	ts.StartTLS()
@@ -167,7 +208,9 @@ func TestHandleClusterCA_CAMatchesServer(t *testing.T) {
 	}
 }
 
-func TestHandleClusterCA_CADoesNotMatchServer(t *testing.T) {
+// TestHandleClusterCA_BundleMismatch verifies that when neither system roots
+// nor the SA bundle can verify the server, null is returned.
+func TestHandleClusterCA_BundleMismatch(t *testing.T) {
 	// Create one CA for the server cert.
 	_, serverCACert, serverCAKey := newTestCA(t)
 	leafCert := newTestLeafCert(t, serverCACert, serverCAKey)

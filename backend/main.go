@@ -229,6 +229,13 @@ func handleFuncCreate(w http.ResponseWriter, r *http.Request) {
 // It is a variable so tests can override it.
 var saCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
+// systemTLSConfig returns the TLS config for the system roots probe.
+// In production this returns an empty config (system trust store).
+// Tests can override it to inject a custom cert pool.
+var systemTLSConfig = func() *tls.Config {
+	return &tls.Config{}
+}
+
 func handleClusterCA(w http.ResponseWriter, r *http.Request) {
 	serverParam := r.URL.Query().Get("server")
 	if serverParam == "" {
@@ -247,6 +254,18 @@ func handleClusterCA(w http.ResponseWriter, r *http.Request) {
 		host = host + ":443"
 	}
 
+	// Probe 1: try system trust store. If the server's cert is publicly
+	// trusted, there is no need to embed a CA in the kubeconfig.
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	if conn, err := tls.DialWithDialer(dialer, "tcp", host, systemTLSConfig()); err == nil {
+		conn.Close()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
+		return
+	}
+
+	// Probe 2: try the service account CA bundle. If it verifies the
+	// server, the cert is privately signed and the runner will need it.
 	caPEM, err := os.ReadFile(saCAPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -282,12 +301,11 @@ func handleClusterCA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	conn, err := tls.DialWithDialer(dialer, "tcp", host, &tls.Config{
 		RootCAs: pool,
 	})
 	if err != nil {
-		// TLS verification failed, the CA does not match the server cert.
+		// Neither system roots nor the SA bundle can verify the server.
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
 		return
