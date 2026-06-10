@@ -55,7 +55,9 @@ Available image tags are listed in the [container registry](https://github.com/f
 In one terminal window, run:
 
 1. `yarn install`
-2. `yarn run start`
+2. `yarn dev`
+
+This starts both the Go backend server (port 8080) and the webpack dev server (port 9001) in a single process.
 
 In another terminal window, run:
 
