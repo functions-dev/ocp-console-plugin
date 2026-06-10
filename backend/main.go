@@ -44,7 +44,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/function/create", handleFuncCreate)
-	mux.HandleFunc("GET /api/cluster/ca", handleClusterCA)
+	mux.Handle("GET /api/cluster/ca", &clusterCAHandler{CAPath: defaultCAPath})
 	mux.Handle("/", http.FileServer(http.FS(static)))
 
 	handler := loggingMiddleware(mux)
@@ -225,18 +225,26 @@ func handleFuncCreate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// saCAPath is the path to the service account CA certificate.
-// It is a variable so tests can override it.
-var saCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+const defaultCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 
-// systemTLSConfig returns the TLS config for the system roots probe.
-// In production this returns an empty config (system trust store).
-// Tests can override it to inject a custom cert pool.
-var systemTLSConfig = func() *tls.Config {
+// clusterCAHandler probes the API server's TLS certificate to decide whether
+// to return the service account CA bundle for embedding in a kubeconfig.
+type clusterCAHandler struct {
+	// CAPath is the path to the service account CA certificate file.
+	CAPath string
+	// SystemTLS returns the TLS config used for the system roots probe.
+	// When nil, an empty tls.Config (system trust store) is used.
+	SystemTLS func() *tls.Config
+}
+
+func (h *clusterCAHandler) systemTLSConfig() *tls.Config {
+	if h.SystemTLS != nil {
+		return h.SystemTLS()
+	}
 	return &tls.Config{}
 }
 
-func handleClusterCA(w http.ResponseWriter, r *http.Request) {
+func (h *clusterCAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	serverParam := r.URL.Query().Get("server")
 	if serverParam == "" {
 		jsonError(w, "missing required query parameter: server", http.StatusBadRequest)
@@ -257,7 +265,7 @@ func handleClusterCA(w http.ResponseWriter, r *http.Request) {
 	// Probe 1: try system trust store. If the server's cert is publicly
 	// trusted, there is no need to embed a CA in the kubeconfig.
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	if conn, err := tls.DialWithDialer(dialer, "tcp", host, systemTLSConfig()); err == nil {
+	if conn, err := tls.DialWithDialer(dialer, "tcp", host, h.systemTLSConfig()); err == nil {
 		conn.Close()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
@@ -266,7 +274,7 @@ func handleClusterCA(w http.ResponseWriter, r *http.Request) {
 
 	// Probe 2: try the service account CA bundle. If it verifies the
 	// server, the cert is privately signed and the runner will need it.
-	caPEM, err := os.ReadFile(saCAPath)
+	caPEM, err := os.ReadFile(h.CAPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			w.Header().Set("Content-Type", "application/json")
