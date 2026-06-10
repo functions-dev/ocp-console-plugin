@@ -12,11 +12,10 @@ export class OcpClusterService {
    * necessary ServiceAccount, Role, and RoleBindings in the target
    * namespace if they do not already exist.
    *
-   * The kubeconfig embeds the cluster CA certificate when the service
-   * account CA matches the API server's TLS certificate. When it does
-   * not match (e.g. publicly trusted CA like Let's Encrypt), neither
-   * certificate-authority-data nor insecure-skip-tls-verify is set,
-   * letting the runner's system trust store handle verification.
+   * The kubeconfig embeds the cluster CA certificate when the API
+   * server uses a private CA (not trusted by the system trust store).
+   * When the cert is publicly trusted, the CA is omitted and the
+   * runner's system trust store handles verification.
    */
   async generateKubeconfig(namespace: string): Promise<string> {
     await this.#createServiceAccount(namespace);
