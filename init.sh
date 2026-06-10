@@ -75,12 +75,18 @@ write_dev_env() {
 EOF
 }
 
+extract_cluster_ca() {
+  echo "Extracting cluster CA certificate..."
+  CA_FILE=$(mktemp --suffix=.crt)
+  oc get cm kube-root-ca.crt -n default -o jsonpath='{.data.ca\.crt}' > "$CA_FILE"
+}
+
 start_backend() {
   echo "Building Go backend..."
   (cd backend && go build -buildvcs=false -o ../bin/backend .)
   (cd backend && go build -buildvcs=false -o ../bin/errserver ./cmd/errserver)
   echo "Starting Go backend..."
-  ./bin/backend --http-port "$BACKEND_PORT" >>"$LOG_DIR/backend.log" 2>&1 &
+  ./bin/backend --http-port "$BACKEND_PORT" --kube-root-ca-path "$CA_FILE" >>"$LOG_DIR/backend.log" 2>&1 &
   echo $! > "$PID_DIR/backend.pid"
 }
 
@@ -111,7 +117,7 @@ start_backend_watcher() {
 
       if $build_ok; then
         mv bin/backend-tmp bin/backend
-        ./bin/backend --http-port "$BACKEND_PORT" >>"$LOG_DIR/backend.log" 2>&1 &
+        ./bin/backend --http-port "$BACKEND_PORT" --kube-root-ca-path "$CA_FILE" >>"$LOG_DIR/backend.log" 2>&1 &
         echo $! > "$PID_DIR/backend.pid"
         echo "[watcher] Backend restarted (PID $!)."
       else
@@ -217,6 +223,7 @@ main() {
   install_dependencies
   stop_dev
   write_dev_env
+  extract_cluster_ca
   start_backend
   wait_for_port "$BACKEND_PORT" "Go backend"
   start_backend_watcher
