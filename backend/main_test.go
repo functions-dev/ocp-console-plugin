@@ -213,6 +213,62 @@ func TestClusterCAHandler_PrivateCA(t *testing.T) {
 	}
 }
 
+// TestClusterCAHandler_EmptyCAFile verifies that an empty CA file returns 500.
+func TestClusterCAHandler_EmptyCAFile(t *testing.T) {
+	_, caCert, caKey := newTestCA(t)
+	leafCert := newTestLeafCert(t, caCert, caKey)
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	h := &clusterCAHandler{CAPath: writeCAFile(t, []byte{})}
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+	var body map[string]string
+	json.NewDecoder(w.Body).Decode(&body)
+	if !strings.Contains(body["message"], "no valid certificates found") {
+		t.Errorf("expected 'no valid certificates found' in message, got %q", body["message"])
+	}
+}
+
+// TestClusterCAHandler_MalformedCAFile verifies that a CA file with corrupt
+// certificate data returns 500.
+func TestClusterCAHandler_MalformedCAFile(t *testing.T) {
+	_, caCert, caKey := newTestCA(t)
+	leafCert := newTestLeafCert(t, caCert, caKey)
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
+	ts.StartTLS()
+	defer ts.Close()
+
+	// PEM block with type CERTIFICATE but garbage DER content.
+	badPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("not valid DER")})
+
+	h := &clusterCAHandler{CAPath: writeCAFile(t, badPEM)}
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+	var body map[string]string
+	json.NewDecoder(w.Body).Decode(&body)
+	if !strings.Contains(body["message"], "failed to parse CA certificate") {
+		t.Errorf("expected 'failed to parse CA certificate' in message, got %q", body["message"])
+	}
+}
+
 // TestClusterCAHandler_BundleMismatch verifies that when neither system roots
 // nor the SA bundle can verify the server, null is returned.
 func TestClusterCAHandler_BundleMismatch(t *testing.T) {
