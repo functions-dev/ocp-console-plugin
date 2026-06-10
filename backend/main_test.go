@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -116,19 +117,29 @@ func TestClusterCAHandler_NonHTTPS(t *testing.T) {
 }
 
 func TestClusterCAHandler_MissingCAFile(t *testing.T) {
+	// Use a self-signed TLS server so probe 1 (system roots) always fails,
+	// ensuring the handler reaches the CA file read path.
+	_, caCert, caKey := newTestCA(t)
+	leafCert := newTestLeafCert(t, caCert, caKey)
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts.TLS = &tls.Config{Certificates: []tls.Certificate{leafCert}}
+	ts.StartTLS()
+	defer ts.Close()
+
 	h := &clusterCAHandler{CAPath: "/nonexistent/path/ca.crt"}
-	req := httptest.NewRequest("GET", "/api/cluster/ca?server=https://example.com", nil)
+	req := httptest.NewRequest("GET", "/api/cluster/ca?server="+ts.URL, nil)
 	w := httptest.NewRecorder()
 
 	h.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
 	}
-	var body map[string]interface{}
+	var body map[string]string
 	json.NewDecoder(w.Body).Decode(&body)
-	if body["ca"] != nil {
-		t.Errorf("expected ca to be null, got %v", body["ca"])
+	if !strings.Contains(body["message"], "failed to read CA file") {
+		t.Errorf("expected 'failed to read CA file' in message, got %q", body["message"])
 	}
 }
 

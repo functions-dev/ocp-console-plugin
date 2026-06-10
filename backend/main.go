@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -276,11 +275,6 @@ func (h *clusterCAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// server, the cert is privately signed and the runner will need it.
 	caPEM, err := os.ReadFile(h.CAPath)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
-			return
-		}
 		jsonError(w, "failed to read CA file: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
