@@ -19,7 +19,7 @@ export interface FunctionTableItem {
   url?: string;
   replicas: number;
   namespace: string;
-  deployment?: K8sResourceKind;
+  knativeService?: K8sResourceKind;
 }
 
 export type FunctionStatus =
@@ -87,7 +87,7 @@ export function FunctionTable({
                   />
                 </ActionListItem>
                 <ActionListItem>
-                  <DeleteActionButton deployment={fn.deployment} />
+                  <DeleteActionButton knativeService={fn.knativeService} />
                 </ActionListItem>
               </ActionList>
             </Td>
@@ -132,10 +132,10 @@ function UrlCell({ url }: { url?: string }) {
   );
 }
 
-function DeleteActionButton({ deployment }: { deployment?: K8sResourceKind }) {
+function DeleteActionButton({ knativeService }: { knativeService?: K8sResourceKind }) {
   const { t } = useTranslation('plugin__console-functions-plugin');
   const launchDelete = useDeleteModal(
-    deployment as K8sResourceKind,
+    knativeService as K8sResourceKind,
     undefined,
     undefined,
     t('Undeploy'),
@@ -146,7 +146,7 @@ function DeleteActionButton({ deployment }: { deployment?: K8sResourceKind }) {
       variant="plain"
       aria-label={t('Delete')}
       icon={<TrashIcon />}
-      isDisabled={!deployment}
+      isDisabled={!knativeService}
       onClick={() => launchDelete()}
     />
   );

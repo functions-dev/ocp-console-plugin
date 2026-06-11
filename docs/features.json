@@ -180,5 +180,16 @@
       "All tests pass, no broken imports"
     ],
     "passes": true
+  },
+  {
+    "category": "technical",
+    "description": "useClusterService: fix resource coupling and improve tests. Knative Services own their Deployments via OwnerReferences, so they are always co-present. Clarify this invariant in tests and consider simplifying to a single merged return type.",
+    "steps": [
+      "Audit useClusterService return type for redundant Knative Service / Deployment separation",
+      "Simplify to a single merged return type if warranted",
+      "Update tests to reflect the co-presence invariant",
+      "All tests pass, no broken imports, build clean"
+    ],
+    "passes": true
   }
 ]

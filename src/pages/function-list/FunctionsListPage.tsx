@@ -182,25 +182,15 @@ function useFunctionListPage(): {
 
   const functionNames = useMemo(() => functionItems.map((item) => item.name), [functionItems]);
 
-  const { knativeServices, deployments, loaded: clusterLoaded } = useClusterService(functionNames);
+  const { functions: clusterFunctions, loaded: clusterLoaded } = useClusterService(functionNames);
 
   const functions = useMemo(
     () =>
       functionItems.map((item) => {
-        const ksvc = knativeServices.find(
-          (s) => s.metadata?.labels?.['function.knative.dev/name'] === item.name,
-        );
-        const latestRevision = ksvc?.status?.latestReadyRevisionName;
-        const deployment = latestRevision
-          ? deployments.find(
-              (d) => d.metadata?.labels?.['serving.knative.dev/revision'] === latestRevision,
-            )
-          : deployments.find(
-              (d) => d.metadata?.labels?.['function.knative.dev/name'] === item.name,
-            );
-        return ksvc && deployment ? enrichItem(item, ksvc, deployment) : item;
+        const info = clusterFunctions[item.name];
+        return info?.deployment ? enrichItem(item, info.knativeService, info.deployment) : item;
       }),
-    [functionItems, knativeServices, deployments],
+    [functionItems, clusterFunctions],
   );
 
   const loaded = reposLoaded && clusterLoaded;
@@ -249,7 +239,7 @@ function enrichItem(
     status: deriveStatus(ksvc, deployment),
     url: ksvc.status?.url,
     replicas: deployment.status?.readyReplicas ?? 0,
-    deployment: ksvc,
+    knativeService: ksvc,
   };
 }
 
