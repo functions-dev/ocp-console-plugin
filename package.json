@@ -12,6 +12,7 @@
     "clean": "rm -rf dist",
     "build": "yarn clean && NODE_ENV=production yarn webpack",
     "build-dev": "yarn clean && yarn webpack",
+    "dev": "./hack/dev.sh",
     "start": "yarn webpack serve --progress",
     "start-console": "./start-console.sh",
     "test": "vitest run",
