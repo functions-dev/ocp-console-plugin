@@ -1,29 +1,16 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"embed"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"flag"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"time"
-
-	cigithub "knative.dev/func/pkg/ci/github"
-	"knative.dev/func/pkg/functions"
 )
 
 //go:embed static/*
@@ -91,249 +78,13 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-type funcCreateRequest struct {
-	Name      string `json:"name"`
-	Runtime   string `json:"runtime"`
-	Registry  string `json:"registry"`
-	Namespace string `json:"namespace"`
-	Branch    string `json:"branch"`
-}
-
-// validName restricts function names to lowercase DNS-label characters.
-var validName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
-
-// validRuntimes is the set of supported function runtimes.
-var validRuntimes = map[string]bool{
-	"node": true, "python": true, "go": true, "quarkus": true,
-}
-
-// validBranch restricts branch names to safe git ref characters.
-var validBranch = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9._/-]*[a-zA-Z0-9])?$`)
-
-// validNamespace restricts namespaces to valid Kubernetes names.
-var validNamespace = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
-
-type fileEntry struct {
-	Path    string `json:"path"`
-	Mode    string `json:"mode"`
-	Content string `json:"content"`
-	Type    string `json:"type"`
-}
-
 func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"message": msg})
 }
 
-func handleFuncCreate(w http.ResponseWriter, r *http.Request) {
-	var cfg funcCreateRequest
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB limit
-	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
-		jsonError(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if !validName.MatchString(cfg.Name) {
-		jsonError(w, "invalid function name: must contain only lowercase alphanumeric characters and hyphens", http.StatusBadRequest)
-		return
-	}
-	if !validRuntimes[cfg.Runtime] {
-		jsonError(w, "invalid runtime: must be one of node, python, go, quarkus", http.StatusBadRequest)
-		return
-	}
-	if !validBranch.MatchString(cfg.Branch) {
-		jsonError(w, "invalid branch name", http.StatusBadRequest)
-		return
-	}
-	if !validNamespace.MatchString(cfg.Namespace) {
-		jsonError(w, "invalid namespace: must contain only lowercase alphanumeric characters and hyphens", http.StatusBadRequest)
-		return
-	}
-
-	tmpDir, err := os.MkdirTemp("", "func-create-*")
-	if err != nil {
-		jsonError(w, "failed to create temp dir: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer os.RemoveAll(tmpDir)
-
-	root := filepath.Join(tmpDir, cfg.Name)
-
-	client := functions.New()
-	_, err = client.Init(functions.Function{
-		Name:      cfg.Name,
-		Root:      root,
-		Runtime:   cfg.Runtime,
-		Registry:  cfg.Registry,
-		Namespace: cfg.Namespace,
-		Template:  "http",
-	})
-	if err != nil {
-		jsonError(w, "failed to initialize function: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := generateCIWorkflow(root, cfg.Runtime, cfg.Branch, cfg.Registry); err != nil {
-		jsonError(w, "failed to generate CI workflow: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var files []fileEntry
-	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		relPath, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		mode := "100644"
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		if info.Mode()&0111 != 0 {
-			mode = "100755"
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			mode = "120000"
-		}
-		files = append(files, fileEntry{
-			Path:    relPath,
-			Mode:    mode,
-			Content: string(content),
-			Type:    "blob",
-		})
-		return nil
-	})
-	if err != nil {
-		jsonError(w, "failed to read generated files: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+func jsonOK(w http.ResponseWriter, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(files); err != nil {
-		log.Printf("failed to encode response: %v", err)
-	}
-}
-
-const defaultCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-
-// clusterCAHandler probes the API server's TLS certificate to decide whether
-// to return the service account CA bundle for embedding in a kubeconfig.
-type clusterCAHandler struct {
-	// CAPath is the path to the service account CA certificate file.
-	CAPath string
-	// SystemTLS returns the TLS config used for the system roots probe.
-	// When nil, an empty tls.Config (system trust store) is used.
-	SystemTLS func() *tls.Config
-}
-
-func (h *clusterCAHandler) systemTLSConfig() *tls.Config {
-	if h.SystemTLS != nil {
-		return h.SystemTLS()
-	}
-	return &tls.Config{}
-}
-
-func (h *clusterCAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	serverParam := r.URL.Query().Get("server")
-	if serverParam == "" {
-		jsonError(w, "missing required query parameter: server", http.StatusBadRequest)
-		return
-	}
-
-	parsed, err := url.Parse(serverParam)
-	if err != nil || parsed.Scheme != "https" {
-		jsonError(w, "server must be an HTTPS URL", http.StatusBadRequest)
-		return
-	}
-
-	host := parsed.Host
-	if parsed.Port() == "" {
-		host = host + ":443"
-	}
-
-	// Probe 1: try system trust store. If the server's cert is publicly
-	// trusted, there is no need to embed a CA in the kubeconfig.
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	if conn, err := tls.DialWithDialer(dialer, "tcp", host, h.systemTLSConfig()); err == nil {
-		conn.Close()
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
-		return
-	}
-
-	// Probe 2: try the service account CA bundle. If it verifies the
-	// server, the cert is privately signed and the runner will need it.
-	caPEM, err := os.ReadFile(h.CAPath)
-	if err != nil {
-		jsonError(w, "failed to read CA file: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	pool := x509.NewCertPool()
-	rest := caPEM
-	var found bool
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-		if block.Type == "CERTIFICATE" {
-			cert, err := x509.ParseCertificate(block.Bytes)
-			if err != nil {
-				jsonError(w, "failed to parse CA certificate: "+err.Error(), http.StatusInternalServerError)
-				return
-			}
-			pool.AddCert(cert)
-			found = true
-		}
-	}
-	if !found {
-		jsonError(w, "no valid certificates found in CA file", http.StatusInternalServerError)
-		return
-	}
-
-	conn, err := tls.DialWithDialer(dialer, "tcp", host, &tls.Config{
-		RootCAs: pool,
-	})
-	if err != nil {
-		// Neither system roots nor the SA bundle can verify the server.
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"ca": nil})
-		return
-	}
-	conn.Close()
-
-	encoded := base64.StdEncoding.EncodeToString(caPEM)
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"ca": encoded})
-}
-
-const ocpInternalRegistry = "image-registry.openshift-image-registry.svc:5000/"
-
-func generateCIWorkflow(root, runtime, branch, registry string) error {
-	gen := cigithub.NewWorkflowGenerator(
-		cigithub.WithWorkflowConfig(cigithub.WorkflowConfig{
-			Branch:        branch,
-			RegistryLogin: !strings.HasPrefix(registry, ocpInternalRegistry),
-			TestStep:      cigithub.DefaultTestStep,
-		}),
-		cigithub.WithMessageWriter(io.Discard),
-	)
-
-	return gen.Generate(context.Background(), functions.Function{
-		Root:    root,
-		Runtime: runtime,
-	})
+	json.NewEncoder(w).Encode(v)
 }
