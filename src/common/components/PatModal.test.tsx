@@ -59,9 +59,7 @@ describe('PatModal', () => {
     });
 
     it('is active when oauth is configured', () => {
-      render(
-        <PatModal {...defaultProps} oauthConfig={{ enabled: true, client_id: 'test-id' }} />,
-      );
+      render(<PatModal {...defaultProps} oauthConfig={{ enabled: true, client_id: 'test-id' }} />);
 
       expect(screen.getByRole('button', { name: /Sign in with GitHub/ })).not.toHaveAttribute(
         'aria-disabled',
@@ -209,12 +207,7 @@ describe('PatModal', () => {
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
       rerender(
-        <PatModal
-          {...defaultProps}
-          isOpen={true}
-          onConnect={onConnect}
-          onClose={onClose}
-        />,
+        <PatModal {...defaultProps} isOpen={true} onConnect={onConnect} onClose={onClose} />,
       );
 
       expect(screen.getByLabelText('Personal Access Token')).toHaveValue('');

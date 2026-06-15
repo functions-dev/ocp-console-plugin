@@ -21,7 +21,9 @@ describe('DisconnectConfirmModal', () => {
     render(<DisconnectConfirmModal {...defaultProps} />);
 
     expect(screen.getByText('Disconnect from GitHub')).toBeInTheDocument();
-    expect(screen.getByText('Are you sure you want to disconnect from GitHub?')).toBeInTheDocument();
+    expect(
+      screen.getByText('Are you sure you want to disconnect from GitHub?'),
+    ).toBeInTheDocument();
   });
 
   it('renders Disconnect and Cancel buttons', () => {
