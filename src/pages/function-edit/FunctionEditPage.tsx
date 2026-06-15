@@ -12,11 +12,7 @@ import { ForgeConnectionProvider } from '../../common/context/ForgeConnectionPro
 import { SourceControlService } from '../../common/services/source-control/SourceControlService';
 import { useSourceControlService } from '../../common/services/source-control/useSourceControlService';
 import { FileEntry, RepoMetadata } from '../../common/services/types';
-import {
-  getLanguageFromPath,
-  handlerMap,
-  parseFuncYaml,
-} from '../../common/utils/utils';
+import { getLanguageFromPath, handlerMap, parseFuncYaml } from '../../common/utils/utils';
 
 // --- page component ---
 
