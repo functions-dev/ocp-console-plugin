@@ -75,7 +75,23 @@ write_dev_env() {
 EOF
 }
 
+build_pages() {
+  if ! command -v helm &>/dev/null; then
+    echo "Error: helm not found. Install from https://helm.sh/docs/intro/install/"
+    exit 1
+  fi
+
+  local plugin_name="console-functions-plugin"
+  echo "Building pages assets..."
+  helm template "$plugin_name" charts/openshift-console-plugin \
+    -n "$plugin_name" \
+    --set "plugin.image=ghcr.io/functions-dev/${plugin_name}:latest" \
+    > backend/static/plugin.yaml
+  cp pages/index.html backend/static/index.html
+}
+
 start_backend() {
+  build_pages
   echo "Building Go backend..."
   (cd backend && go build -buildvcs=false -o ../bin/backend .)
   (cd backend && go build -buildvcs=false -o ../bin/errserver ./cmd/errserver)
@@ -176,6 +192,7 @@ check_prerequisites() {
     echo "Error: not logged in to OpenShift. Run 'oc login' first."
     exit 1
   fi
+
 }
 
 install_dependencies() {
