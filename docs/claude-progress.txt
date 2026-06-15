@@ -2,14 +2,16 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
-## 2026-06-12 | Session: Fix clipboard copy error handling
-Worked on: Add error state for copy-to-clipboard buttons on landing page
+## 2026-06-16 | Session: PR #36 - GitHub Pages local dev + clipboard fix (SRVOCF-843)
+Worked on: Local GitHub Pages dev support, clipboard copy error handling, PR review feedback
 Completed:
-- Added error handling for navigator.clipboard API unavailability (e.g. non-HTTPS contexts)
-- Added .catch() handler for clipboard.writeText promise rejection
-- Added error state styling (.copy-error class) with red color, X icon, and "Copy failed" hover label
-- Applied error handling to both install command and YAML copy buttons
-Left off: Branch pr/fix-catch ready for review.
+- Added error handling for clipboard copy buttons: .catch() on writeText, error state styling (.copy-error class with red color, X icon, "Copy failed" label)
+- GitHub Pages local dev: build_pages in init.sh, README simplification, CRC host mapping, .gitignore updates
+- Extracted PLUGIN_NAME local variable in build_pages() to replace hardcoded strings
+- Moved helm prerequisite check from check_prerequisites() into build_pages() (only needed there)
+- Added features.json entry for SRVOCF-843, set "passes": true
+- All 14 suites, 126 tests passing, webpack builds clean
+Left off: Changes ready to commit and push for merge.
 Blockers: None
 
 ---
