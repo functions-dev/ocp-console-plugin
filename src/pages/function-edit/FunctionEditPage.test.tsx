@@ -4,6 +4,7 @@ import { http, HttpResponse, delay } from 'msw';
 import { server } from '../../../testing/msw/server';
 import { MemoryRouter, Route, Routes } from 'react-router-dom-v5-compat';
 import FunctionEditPage from './FunctionEditPage';
+import { TOKEN_KEY } from '../../common/services/types';
 
 const GITHUB_API = 'https://api.github.com';
 
@@ -79,7 +80,7 @@ function setupFetchHandlers() {
 
 describe('FunctionEditPage', () => {
   beforeAll(() => {
-    sessionStorage.setItem('func-console-pat', 'test-pat');
+    sessionStorage.setItem(TOKEN_KEY, 'test-pat');
   });
 
   afterAll(() => {

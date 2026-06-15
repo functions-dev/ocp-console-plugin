@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UserAvatar } from './UserAvatar';
-import { PAT_KEY, USER_KEY } from '../services/types';
+import { TOKEN_KEY, USER_KEY } from '../services/types';
 import { ForgeConnectionContext } from '../context/ForgeConnectionProvider';
 import { ReactNode } from 'react';
 
@@ -13,6 +13,15 @@ const mockFetchUserInfo = vi.fn();
 vi.mock('../services/source-control/useSourceControlService', () => ({
   useSourceControlService: () => ({
     fetchUserInfo: mockFetchUserInfo,
+  }),
+}));
+
+const mockFetchConfig = vi.fn().mockResolvedValue({ enabled: false, client_id: '' });
+const mockStartFlow = vi.fn();
+vi.mock('../services/oauth/useOAuthService', () => ({
+  useOAuthService: () => ({
+    fetchConfig: mockFetchConfig,
+    startFlow: mockStartFlow,
   }),
 }));
 
@@ -48,7 +57,7 @@ describe('UserAvatar', () => {
     });
 
     it('renders username when user is stored in sessionStorage', () => {
-      sessionStorage.setItem(PAT_KEY, 'ghp_test');
+      sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
       sessionStorage.setItem(USER_KEY, JSON.stringify(testUser));
 
       renderWithContext(<UserAvatar enableReconnect />);
@@ -56,17 +65,16 @@ describe('UserAvatar', () => {
       expect(screen.getByText('twoGiants')).toBeInTheDocument();
     });
 
-    it('button is clickable when enableReconnect is true', async () => {
+    it('shows dropdown when logged-in user is clicked', async () => {
       const user = userEvent.setup();
-      sessionStorage.setItem(PAT_KEY, 'ghp_test');
+      sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
       sessionStorage.setItem(USER_KEY, JSON.stringify(testUser));
 
       renderWithContext(<UserAvatar enableReconnect />);
 
-      const button = screen.getByRole('button', { name: 'twoGiants' });
-      await user.click(button);
+      await user.click(screen.getByRole('button', { name: 'twoGiants' }));
 
-      expect(screen.getByText('Personal Access Token')).toBeInTheDocument();
+      expect(screen.getByText('Disconnect')).toBeInTheDocument();
     });
 
     it('button is disabled when enableReconnect is false', async () => {
@@ -90,7 +98,7 @@ describe('UserAvatar', () => {
     });
 
     it('does not auto-open modal when PAT is already stored', () => {
-      sessionStorage.setItem(PAT_KEY, 'ghp_test');
+      sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
       sessionStorage.setItem(USER_KEY, JSON.stringify(testUser));
 
       renderWithContext(<UserAvatar enableReconnect />);
@@ -132,7 +140,7 @@ describe('UserAvatar', () => {
       });
 
       expect(screen.getByText('twoGiants')).toBeInTheDocument();
-      expect(sessionStorage.getItem(PAT_KEY)).toBe('ghp_valid');
+      expect(sessionStorage.getItem(TOKEN_KEY)).toBe('ghp_valid');
       expect(JSON.parse(sessionStorage.getItem(USER_KEY)!)).toEqual(testUser);
       expect(connectToForge).toHaveBeenCalled();
     });
@@ -161,7 +169,7 @@ describe('UserAvatar', () => {
       expect(screen.queryByText('Personal Access Token')).not.toBeInTheDocument();
     });
 
-    it('clears PAT input after successful connect', async () => {
+    it('shows dropdown after successful connect', async () => {
       const user = userEvent.setup();
       const connectToForge = vi.fn();
       mockFetchUserInfo.mockResolvedValue(testUser);
@@ -182,7 +190,7 @@ describe('UserAvatar', () => {
 
       await user.click(screen.getByRole('button', { name: 'twoGiants' }));
 
-      expect(screen.getByLabelText('Personal Access Token')).toHaveValue('');
+      expect(screen.getByText('Disconnect')).toBeInTheDocument();
     });
 
     it('clears PAT input and error on cancel', async () => {
@@ -220,6 +228,27 @@ describe('UserAvatar', () => {
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
 
       resolveConnect!();
+    });
+  });
+
+  describe('disconnect', () => {
+    it('shows confirmation modal and disconnects on confirm', async () => {
+      const user = userEvent.setup();
+      sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
+      sessionStorage.setItem(USER_KEY, JSON.stringify(testUser));
+
+      renderWithContext(<UserAvatar enableReconnect />);
+
+      await user.click(screen.getByRole('button', { name: 'twoGiants' }));
+      await user.click(screen.getByRole('menuitem', { name: 'Disconnect' }));
+
+      expect(screen.getByText('Disconnect from GitHub')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Disconnect' }));
+
+      expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull();
+      expect(sessionStorage.getItem(USER_KEY)).toBeNull();
+      expect(screen.getByText('Connect to GitHub')).toBeInTheDocument();
     });
   });
 });

@@ -93,7 +93,8 @@
     "exposedModules": {
       "FunctionsListPage": "./pages/function-list/FunctionsListPage",
       "FunctionCreatePage": "./pages/function-create/FunctionCreatePage",
-      "FunctionEditPage": "./pages/function-edit/FunctionEditPage"
+      "FunctionEditPage": "./pages/function-edit/FunctionEditPage",
+      "OAuthCallbackPage": "./pages/oauth-callback/OAuthCallbackPage"
     },
     "dependencies": {
       "@console/pluginAPI": ">=4.19.0"

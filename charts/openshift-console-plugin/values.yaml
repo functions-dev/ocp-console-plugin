@@ -25,6 +25,11 @@ plugin:
       cpu: 10m
       memory: 50Mi
   basePath: /
+  oauth:
+    enabled: false
+    githubClientId: ""
+    githubSecretName: ""
+    githubSecretKey: "client-secret"
   certificateSecretName: ""
   serviceAccount:
     create: true

@@ -1,28 +1,14 @@
-import {
-  Alert,
-  Button,
-  Divider,
-  Flex,
-  FlexItem,
-  Form,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  Modal,
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  TextInput,
-  Tooltip,
-} from '@patternfly/react-core';
-import { GithubIcon, KeyIcon, UserIcon } from '@patternfly/react-icons';
+import { Button, Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core';
+import { KeyIcon, UserIcon } from '@patternfly/react-icons';
+import { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ForgeUser, PAT_KEY, USER_KEY } from '../services/types';
-import { useContext, useState } from 'react';
 import { ForgeConnectionContext } from '../context/ForgeConnectionProvider';
+import { OAuthConfig } from '../services/oauth/OAuthService';
+import { useOAuthService } from '../services/oauth/useOAuthService';
 import { useSourceControlService } from '../services/source-control/useSourceControlService';
-import { errorMessage } from '../utils/utils';
+import { AUTH_METHOD_KEY, ForgeUser, TOKEN_KEY, USER_KEY } from '../services/types';
+import { DisconnectConfirmModal } from './DisconnectConfirmModal';
+import { PatModal } from './PatModal';
 
 interface UserAvatarProps {
   enableReconnect: boolean;
@@ -30,55 +16,155 @@ interface UserAvatarProps {
 
 export function UserAvatar({ enableReconnect }: UserAvatarProps) {
   const { t } = useTranslation('plugin__console-functions-plugin');
-  const { user, isModalOpen, openModal, closeModal, login } = useUserAvatar(enableReconnect);
+  const {
+    user,
+    isModalOpen,
+    isDropdownOpen,
+    isConfirmOpen,
+    oauthConfig,
+    openModal,
+    closeModal,
+    loginWithPat,
+    loginWithOAuth,
+    toggleDropdown,
+    closeDropdown,
+    openConfirm,
+    closeConfirm,
+    disconnect,
+  } = useUserAvatar(enableReconnect);
 
-  const icon = user ? <UserIcon /> : <KeyIcon />;
-  const label = user ? user.name : t('Connect to GitHub');
+  if (user) {
+    return (
+      <>
+        <Dropdown
+          isOpen={isDropdownOpen}
+          onSelect={closeDropdown}
+          onOpenChange={(setOpen) => !setOpen && closeDropdown()}
+          toggle={(toggleRef) => (
+            <MenuToggle
+              ref={toggleRef}
+              onClick={toggleDropdown}
+              variant="plain"
+              icon={<UserIcon />}
+            >
+              {user.name}
+            </MenuToggle>
+          )}
+          popperProps={{ position: 'end' }}
+        >
+          <DropdownList>
+            <DropdownItem key="disconnect" onClick={openConfirm}>
+              {t('Disconnect')}
+            </DropdownItem>
+          </DropdownList>
+        </Dropdown>
+        <DisconnectConfirmModal
+          isOpen={isConfirmOpen}
+          onClose={closeConfirm}
+          onConfirm={disconnect}
+        />
+      </>
+    );
+  }
 
   return (
     <>
       <Button
         variant="link"
-        icon={icon}
+        icon={<KeyIcon />}
         onClick={enableReconnect ? openModal : undefined}
         isDisabled={!enableReconnect}
-        style={!enableReconnect ? { cursor: 'default' } : undefined}
       >
-        {label}
+        {t('Connect to GitHub')}
       </Button>
-      <PatModal isOpen={isModalOpen} onClose={closeModal} onConnect={login} />
+      <PatModal
+        isOpen={isModalOpen}
+        oauthConfig={oauthConfig}
+        onClose={closeModal}
+        onConnect={loginWithPat}
+        onOAuth={loginWithOAuth}
+      />
     </>
   );
 }
 
 function useUserAvatar(enableReconnect: boolean) {
   const sourceControlService = useSourceControlService();
+  const oauthService = useOAuthService();
   const connectToForge = useContext(ForgeConnectionContext).connectToForge;
   const [user, setUser] = useState<ForgeUser | null>(() => readStoredUser());
   const [isModalOpen, setIsModalOpen] = useState(
-    () => enableReconnect && !sessionStorage.getItem(PAT_KEY),
+    () => enableReconnect && !sessionStorage.getItem(TOKEN_KEY),
   );
+  const [oauthConfig, setOAuthConfig] = useState<OAuthConfig | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  const login = async (pat: string) => {
-    const forgeUser = await sourceControlService.fetchUserInfo(pat);
-    sessionStorage.setItem(PAT_KEY, pat);
+  useEffect(() => {
+    oauthService
+      .fetchConfig()
+      .then(setOAuthConfig)
+      .catch(() => {});
+  }, [oauthService]);
+
+  const finishLogin = (token: string, forgeUser: ForgeUser, method: 'pat' | 'oauth') => {
+    sessionStorage.setItem(TOKEN_KEY, token);
     sessionStorage.setItem(USER_KEY, JSON.stringify(forgeUser));
+    sessionStorage.setItem(AUTH_METHOD_KEY, method);
     setUser(forgeUser);
     setIsModalOpen(false);
     connectToForge(forgeUser);
   };
 
+  const loginWithPat = async (pat: string) => {
+    const forgeUser = await sourceControlService.fetchUserInfo(pat);
+    finishLogin(pat, forgeUser, 'pat');
+  };
+
+  const loginWithOAuth = async () => {
+    const token = await oauthService.startFlow();
+    const forgeUser = await sourceControlService.fetchUserInfo(token);
+    finishLogin(token, forgeUser, 'oauth');
+  };
+
+  const disconnect = () => {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(AUTH_METHOD_KEY);
+    setUser(null);
+    setIsConfirmOpen(false);
+  };
+
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+  const toggleDropdown = () => setIsDropdownOpen((prev) => !prev);
+  const closeDropdown = () => setIsDropdownOpen(false);
+  const openConfirm = () => setIsConfirmOpen(true);
+  const closeConfirm = () => setIsConfirmOpen(false);
 
-  return { user, isModalOpen, openModal, closeModal, login };
+  return {
+    user,
+    isModalOpen,
+    isDropdownOpen,
+    isConfirmOpen,
+    oauthConfig,
+    openModal,
+    closeModal,
+    loginWithPat,
+    loginWithOAuth,
+    toggleDropdown,
+    closeDropdown,
+    openConfirm,
+    closeConfirm,
+    disconnect,
+  };
 }
 
 function readStoredUser(): ForgeUser | null {
-  const pat = sessionStorage.getItem(PAT_KEY);
+  const token = sessionStorage.getItem(TOKEN_KEY);
   const userJson = sessionStorage.getItem(USER_KEY);
 
-  if (!pat || !userJson) {
+  if (!token || !userJson) {
     return null;
   }
 
@@ -87,111 +173,4 @@ function readStoredUser(): ForgeUser | null {
   } catch {
     return null;
   }
-}
-
-interface PatModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConnect: (pat: string) => Promise<void>;
-}
-
-function PatModal({ isOpen, onClose, onConnect }: PatModalProps) {
-  const { t } = useTranslation('plugin__console-functions-plugin');
-  const { pat, isValidating, error, setPat, handleConnect, handleClose } = usePatModal(
-    onClose,
-    onConnect,
-  );
-
-  return (
-    <Modal isOpen={isOpen} onClose={isValidating ? undefined : handleClose} variant="small">
-      <ModalHeader title={t('Connect to GitHub')} />
-      <ModalBody>
-        {error && (
-          <Alert variant="danger" title={error} isInline style={{ marginBottom: '1rem' }} />
-        )}
-        <Tooltip content={t('Coming soon')}>
-          <Button
-            className="pf-v6-u-my-md"
-            variant="secondary"
-            icon={<GithubIcon />}
-            isAriaDisabled
-            isBlock
-            data-test="oauth-button"
-          >
-            {t('Sign in with GitHub')}
-          </Button>
-        </Tooltip>
-        <Flex
-          className="pf-v6-u-my-md"
-          alignItems={{ default: 'alignItemsCenter' }}
-          spaceItems={{ default: 'spaceItemsSm' }}
-        >
-          <FlexItem flex={{ default: 'flex_1' }}>
-            <Divider />
-          </FlexItem>
-          <FlexItem>{t('or')}</FlexItem>
-          <FlexItem flex={{ default: 'flex_1' }}>
-            <Divider />
-          </FlexItem>
-        </Flex>
-        <Form>
-          <FormGroup label={t('Personal Access Token')} fieldId="pat-input">
-            <TextInput
-              id="pat-input"
-              type="password"
-              value={pat}
-              onChange={(_, value) => setPat(value)}
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>
-                  {t('Enter your GitHub Personal Access Token to connect your repositories.')}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-        </Form>
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          variant="primary"
-          onClick={handleConnect}
-          isDisabled={!pat || isValidating}
-          isLoading={isValidating}
-        >
-          {t('Connect')}
-        </Button>
-        <Button variant="link" onClick={handleClose} isDisabled={isValidating}>
-          {t('Cancel')}
-        </Button>
-      </ModalFooter>
-    </Modal>
-  );
-}
-
-function usePatModal(onClose: () => void, onConnect: (pat: string) => Promise<void>) {
-  const [pat, setPat] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleConnect = async () => {
-    setIsValidating(true);
-    setError(null);
-    try {
-      await onConnect(pat);
-      setPat('');
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setIsValidating(false);
-    }
-  };
-
-  const handleClose = () => {
-    setPat('');
-    setError(null);
-    onClose();
-  };
-
-  return { pat, isValidating, error, setPat, handleConnect, handleClose };
 }

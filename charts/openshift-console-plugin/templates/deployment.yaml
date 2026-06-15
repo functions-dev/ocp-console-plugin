@@ -28,6 +28,16 @@ spec:
               protocol: TCP
           args:
             - "--https-port={{ .Values.plugin.port }}"
+          {{- if .Values.plugin.oauth.enabled }}
+          env:
+            - name: GITHUB_CLIENT_ID
+              value: {{ .Values.plugin.oauth.githubClientId | quote }}
+            - name: GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.plugin.oauth.githubSecretName }}
+                  key: {{ .Values.plugin.oauth.githubSecretKey }}
+          {{- end }}
           imagePullPolicy: {{ .Values.plugin.imagePullPolicy }}
           {{- if and (.Values.plugin.securityContext.enabled) (.Values.plugin.containerSecurityContext) }}
           securityContext: {{ tpl (toYaml (omit .Values.plugin.containerSecurityContext "enabled")) $ | nindent 12 }}

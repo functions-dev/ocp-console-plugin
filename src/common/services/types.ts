@@ -1,5 +1,8 @@
-export const PAT_KEY = 'func-console-pat';
+export const TOKEN_KEY = 'func-console-token';
+export const PAT_KEY = TOKEN_KEY;
 export const USER_KEY = 'func-console-user';
+export const AUTH_METHOD_KEY = 'func-console-auth-method';
+export type AuthMethod = 'pat' | 'oauth';
 
 export interface FileEntry {
   path: string;
