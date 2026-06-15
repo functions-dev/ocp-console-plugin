@@ -65,9 +65,7 @@ export function PatModal({ isOpen, oauthConfig, onClose, onConnect, onOAuth }: P
     <Modal isOpen={isOpen} onClose={isBusy ? undefined : handleClose} variant="small">
       <ModalHeader title={t('Connect to GitHub')} />
       <ModalBody>
-        {error && (
-          <Alert variant="danger" title={error} isInline style={{ marginBottom: '1rem' }} />
-        )}
+        {error && <Alert variant="danger" title={error} isInline className="pf-v6-u-mb-md" />}
         {oauthEnabled ? (
           oauthButton
         ) : (

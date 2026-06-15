@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom-v5-compat';
 import FunctionsListPage from './FunctionsListPage';
-import { PAT_KEY } from '../../common/services/types';
+import { TOKEN_KEY } from '../../common/services/types';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -68,7 +68,7 @@ function clusterData(
 }
 
 function renderAuthenticated() {
-  sessionStorage.setItem(PAT_KEY, 'ghp_test');
+  sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
 }
 
 function repoFixture(name: string) {

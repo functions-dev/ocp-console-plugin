@@ -39,7 +39,7 @@ export function UserAvatar({ enableReconnect }: UserAvatarProps) {
         <Dropdown
           isOpen={isDropdownOpen}
           onSelect={closeDropdown}
-          onOpenChange={(setOpen) => !setOpen && closeDropdown()}
+          onOpenChange={(open) => !open && closeDropdown()}
           toggle={(toggleRef) => (
             <MenuToggle
               ref={toggleRef}
@@ -91,7 +91,7 @@ export function UserAvatar({ enableReconnect }: UserAvatarProps) {
 function useUserAvatar(enableReconnect: boolean) {
   const sourceControlService = useSourceControlService();
   const oauthService = useOAuthService();
-  const connectToForge = useContext(ForgeConnectionContext).connectToForge;
+  const { connectToForge, disconnectFromForge } = useContext(ForgeConnectionContext);
   const [user, setUser] = useState<ForgeUser | null>(() => readStoredUser());
   const [isModalOpen, setIsModalOpen] = useState(
     () => enableReconnect && !sessionStorage.getItem(TOKEN_KEY),
@@ -133,6 +133,7 @@ function useUserAvatar(enableReconnect: boolean) {
     sessionStorage.removeItem(AUTH_METHOD_KEY);
     setUser(null);
     setIsConfirmOpen(false);
+    disconnectFromForge();
   };
 
   const openModal = () => setIsModalOpen(true);

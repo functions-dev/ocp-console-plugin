@@ -10,6 +10,7 @@ const forgeContext = {
   user: testUser,
   connectionId: 0,
   connectToForge: vi.fn(),
+  disconnectFromForge: vi.fn(),
 };
 
 function renderWithContext(ui: React.ReactElement) {

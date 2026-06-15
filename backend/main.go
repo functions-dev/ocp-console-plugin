@@ -228,9 +228,13 @@ var (
 
 func handleOAuthConfig(w http.ResponseWriter, _ *http.Request) {
 	enabled := githubClientID != "" && githubClientSecret != ""
+	cid := ""
+	if enabled {
+		cid = githubClientID
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"client_id": githubClientID,
+		"client_id": cid,
 		"enabled":   enabled,
 	})
 }
@@ -284,6 +288,11 @@ func handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		jsonError(w, fmt.Sprintf("GitHub returned HTTP %d", resp.StatusCode), http.StatusBadGateway)
+		return
+	}
+
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
 	if err != nil {
 		jsonError(w, "failed to read GitHub response", http.StatusBadGateway)
@@ -302,8 +311,14 @@ func handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, _ := ghResp["access_token"].(string)
+	if token == "" {
+		jsonError(w, "no access_token in GitHub response", http.StatusBadGateway)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
+	json.NewEncoder(w).Encode(map[string]string{"access_token": token})
 }
 
 const ocpInternalRegistry = "image-registry.openshift-image-registry.svc:5000/"

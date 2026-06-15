@@ -29,7 +29,13 @@ const testUser = { name: 'twoGiants' };
 
 function renderWithContext(
   ui: ReactNode,
-  contextValue = { isActive: false, user: testUser, connectionId: 0, connectToForge: vi.fn() },
+  contextValue = {
+    isActive: false,
+    user: testUser,
+    connectionId: 0,
+    connectToForge: vi.fn(),
+    disconnectFromForge: vi.fn(),
+  },
 ) {
   return render(
     <ForgeConnectionContext.Provider value={contextValue}>{ui}</ForgeConnectionContext.Provider>,
@@ -130,6 +136,7 @@ describe('UserAvatar', () => {
         user: testUser,
         connectionId: 0,
         connectToForge,
+        disconnectFromForge: vi.fn(),
       });
 
       await user.type(screen.getByLabelText('Personal Access Token'), 'ghp_valid');
@@ -179,6 +186,7 @@ describe('UserAvatar', () => {
         user: testUser,
         connectionId: 0,
         connectToForge,
+        disconnectFromForge: vi.fn(),
       });
 
       await user.type(screen.getByLabelText('Personal Access Token'), 'ghp_valid');

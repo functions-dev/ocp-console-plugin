@@ -6,6 +6,7 @@ interface ForgeConnection {
   user: ForgeUser;
   connectionId: number;
   connectToForge: (user: ForgeUser) => void;
+  disconnectFromForge: () => void;
 }
 
 export const ForgeConnectionContext = createContext<ForgeConnection>({
@@ -13,6 +14,7 @@ export const ForgeConnectionContext = createContext<ForgeConnection>({
   user: { name: '' },
   connectionId: 0,
   connectToForge: () => {},
+  disconnectFromForge: () => {},
 });
 
 export function ForgeConnectionProvider({ children }: Readonly<{ children: ReactNode }>) {
@@ -26,8 +28,15 @@ export function ForgeConnectionProvider({ children }: Readonly<{ children: React
     setConnectionId((id) => id + 1);
   };
 
+  const disconnectFromForge = () => {
+    setUser({ name: '' });
+    setIsActive(false);
+  };
+
   return (
-    <ForgeConnectionContext.Provider value={{ isActive, user, connectionId, connectToForge }}>
+    <ForgeConnectionContext.Provider
+      value={{ isActive, user, connectionId, connectToForge, disconnectFromForge }}
+    >
       {children}
     </ForgeConnectionContext.Provider>
   );

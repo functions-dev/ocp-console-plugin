@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import FunctionCreatePage from './FunctionCreatePage';
-import { PAT_KEY, USER_KEY } from '../../common/services/types';
+import { TOKEN_KEY, USER_KEY } from '../../common/services/types';
 
 const mockGenerateFunction = vi.fn();
 const mockCreateRepoWithSecret = vi.fn();
@@ -83,7 +83,7 @@ describe('FunctionCreatePage', () => {
   });
 
   it('renders CreateFunctionForm', () => {
-    sessionStorage.setItem(PAT_KEY, 'ghp_test');
+    sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
 
     renderPage();
 
@@ -92,7 +92,7 @@ describe('FunctionCreatePage', () => {
   });
 
   it('calls generateFunction, creates repo with secrets, then navigates on submit', async () => {
-    sessionStorage.setItem(PAT_KEY, 'ghp_test');
+    sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
     sessionStorage.setItem(USER_KEY, JSON.stringify({ name: 'testuser' }));
     const user = userEvent.setup();
     const files = [{ path: 'func.yaml', mode: '100644', content: 'name: f', type: 'blob' }];
@@ -134,7 +134,7 @@ describe('FunctionCreatePage', () => {
   });
 
   it('shows an alert on error', async () => {
-    sessionStorage.setItem(PAT_KEY, 'ghp_test');
+    sessionStorage.setItem(TOKEN_KEY, 'ghp_test');
     sessionStorage.setItem(USER_KEY, JSON.stringify({ name: 'testuser' }));
     const user = userEvent.setup();
     mockGenerateFunction.mockRejectedValue(new Error('Backend error'));
