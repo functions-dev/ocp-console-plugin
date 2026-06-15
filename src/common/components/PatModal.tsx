@@ -68,7 +68,13 @@ export function PatModal({ isOpen, oauthConfig, onClose, onConnect, onOAuth }: P
         {error && (
           <Alert variant="danger" title={error} isInline style={{ marginBottom: '1rem' }} />
         )}
-        {oauthEnabled ? oauthButton : <Tooltip content={t('Coming soon')}>{oauthButton}</Tooltip>}
+        {oauthEnabled ? (
+          oauthButton
+        ) : (
+          <Tooltip content={t('OAuth is not configured. Contact your cluster administrator.')}>
+            {oauthButton}
+          </Tooltip>
+        )}
         <Flex
           className="pf-v6-u-my-md"
           alignItems={{ default: 'alignItemsCenter' }}
