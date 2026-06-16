@@ -383,7 +383,9 @@ describe('FunctionEditPage', () => {
     });
 
     expect(screen.getByText('Start editing')).toBeInTheDocument();
-    expect(screen.getByText('Select a file from the tree view to start editing.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Select a file from the tree view to start editing.'),
+    ).toBeInTheDocument();
   });
 
   it('shows success message after save and hides it after 2 seconds', async () => {
