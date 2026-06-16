@@ -1,6 +1,15 @@
 import { CodeEditor, DocumentTitle, ListPageHeader } from '@openshift-console/dynamic-plugin-sdk';
 import type { Language } from '@patternfly/react-code-editor';
-import { EmptyState, EmptyStateBody, Flex, FlexItem, PageSection } from '@patternfly/react-core';
+import {
+  Content,
+  ContentVariants,
+  EmptyState,
+  EmptyStateBody,
+  PageSection,
+  Sidebar,
+  SidebarContent,
+  SidebarPanel,
+} from '@patternfly/react-core';
 import { CodeIcon } from '@patternfly/react-icons';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -40,15 +49,17 @@ function FunctionEditPageContent() {
       </ListPageHeader>
       <PageSection>
         <EditToolbar hasChanges={state.hasChanges} onSave={state.saveFiles} />
-        <Flex
-          direction={{ default: 'row' }}
-          flexWrap={{ default: 'nowrap' }}
-          alignItems={{ default: 'alignItemsStretch' }}
-        >
-          <FlexItem
-            flex={{ default: 'flexNone' }}
-            style={{ width: '16rem', overflowX: 'auto', overflowY: 'auto' }}
-          >
+        {state.repoMetadata && (
+          <Content component={ContentVariants.p}>
+            {state.repoMetadata.name}
+            {' · '}
+            <a href={state.repoMetadata.url} target="_blank" rel="noopener noreferrer">
+              {state.repoMetadata.owner}/{state.repoMetadata.name}
+            </a>
+          </Content>
+        )}
+        <Sidebar hasGutter hasBorder>
+          <SidebarPanel width={{ default: 'width_25' }}>
             <FileTreeView
               files={state.files}
               selectedPath={state.selectedPath}
@@ -56,8 +67,8 @@ function FunctionEditPageContent() {
               isLoading={state.isLoading}
               onSelect={state.onFileSelect}
             />
-          </FlexItem>
-          <FlexItem grow={{ default: 'grow' }} style={{ minWidth: '32rem' }}>
+          </SidebarPanel>
+          <SidebarContent>
             <CodeEditor
               value={state.selectedContent}
               language={state.selectedLanguage}
@@ -73,8 +84,8 @@ function FunctionEditPageContent() {
               }
               isLanguageLabelVisible
             />
-          </FlexItem>
-        </Flex>
+          </SidebarContent>
+        </Sidebar>
       </PageSection>
     </>
   );

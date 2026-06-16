@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Spinner, TreeView, TreeViewDataItem } from '@patternfly/react-core';
+import { FolderIcon, FolderOpenIcon } from '@patternfly/react-icons';
 import { FileEntry } from '../../../common/services/types';
 import * as React from 'react';
 
@@ -146,7 +147,11 @@ function buildFileTree(files: FileEntry[], dirtyPaths: Set<string>): TreeViewDat
       name: dirtyPaths.has(id) ? `${name} \u25CF` : name,
       defaultExpanded: true,
     };
-    if (isDir) item.children = [];
+    if (isDir) {
+      item.children = [];
+      item.icon = <FolderIcon />;
+      item.expandedIcon = <FolderOpenIcon />;
+    }
     items.push(item);
   }
 
