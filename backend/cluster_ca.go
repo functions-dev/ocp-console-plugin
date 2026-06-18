@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -22,6 +23,11 @@ type clusterCAHandler struct {
 	// SystemTLS returns the TLS config used for the system roots probe.
 	// When nil, an empty tls.Config (system trust store) is used.
 	SystemTLS func() *tls.Config
+
+	caOnce sync.Once
+	caPEM  []byte
+	caPool *x509.CertPool
+	caErr  string
 }
 
 func (h *clusterCAHandler) systemTLSConfig() *tls.Config {
@@ -29,6 +35,44 @@ func (h *clusterCAHandler) systemTLSConfig() *tls.Config {
 		return h.SystemTLS()
 	}
 	return &tls.Config{}
+}
+
+// loadCA reads and parses the CA file, storing results on the struct.
+func (h *clusterCAHandler) loadCA() {
+	data, err := os.ReadFile(h.CAPath)
+	if err != nil {
+		h.caErr = "failed to read CA file: " + err.Error()
+		return
+	}
+
+	pool := x509.NewCertPool()
+	rest := data
+	var found bool
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			h.caErr = "failed to parse CA certificate: " + err.Error()
+			return
+		}
+		pool.AddCert(cert)
+		found = true
+	}
+	if !found {
+		h.caErr = "no valid certificates found in CA file"
+		return
+	}
+
+	h.caPEM = data
+	h.caPool = pool
 }
 
 func (h *clusterCAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -60,40 +104,14 @@ func (h *clusterCAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Probe 2: try the service account CA bundle. If it verifies the
 	// server, the cert is privately signed and the runner will need it.
-	caPEM, err := os.ReadFile(h.CAPath)
-	if err != nil {
-		jsonError(w, "failed to read CA file: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	pool := x509.NewCertPool()
-	rest := caPEM
-	var found bool
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-		if block.Type != "CERTIFICATE" {
-			continue
-		}
-
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			jsonError(w, "failed to parse CA certificate: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		pool.AddCert(cert)
-		found = true
-	}
-	if !found {
-		jsonError(w, "no valid certificates found in CA file", http.StatusInternalServerError)
+	h.caOnce.Do(h.loadCA)
+	if h.caErr != "" {
+		jsonError(w, h.caErr, http.StatusInternalServerError)
 		return
 	}
 
 	conn, err := tls.DialWithDialer(dialer, "tcp", host, &tls.Config{
-		RootCAs: pool,
+		RootCAs: h.caPool,
 	})
 	if err != nil {
 		// Neither system roots nor the SA bundle can verify the server.
@@ -102,6 +120,6 @@ func (h *clusterCAHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.Close()
 
-	encoded := base64.StdEncoding.EncodeToString(caPEM)
+	encoded := base64.StdEncoding.EncodeToString(h.caPEM)
 	jsonOK(w, map[string]string{"ca": encoded})
 }
