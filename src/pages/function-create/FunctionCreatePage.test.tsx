@@ -84,6 +84,9 @@ function setupCreateFlowHandlers() {
       HttpResponse.json([{ path: 'func.yaml', mode: '100644', content: 'name: f', type: 'blob' }]),
     ),
 
+    // Backend: cluster CA
+    http.get(`${BACKEND_API}/api/cluster/ca`, () => HttpResponse.json({ ca: 'dGVzdC1jYQ==' })),
+
     // GitHub: check repo doesn't exist
     http.get(`${GITHUB_API}/repos/${owner}/${repoName}`, () =>
       HttpResponse.json({ message: 'Not Found' }, { status: 404 }),
