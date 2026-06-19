@@ -2,6 +2,17 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-06-19 | Session: SRVOCF-850 editor layout improvements
+Worked on: PR #43 review comments, metadata display, file icons, layout fix
+Completed:
+- Replaced plain text repo metadata with horizontal compact DescriptionList (Repository link + Branch)
+- Added FileIcon to file nodes in FileTreeView (directories already had FolderIcon/FolderOpenIcon)
+- Moved DescriptionList inside SidebarPanel so metadata and tree share the same container margins
+- Updated FileTreeView test to expect icons on both directory and file nodes
+Left off: Changes staged on SRVOCF-850--editor-layout-ux branch. Tested visually with Playwright against live rluby-dev cluster.
+Blockers: None
+
+---
 ## 2026-05-21 | Session: Page co-location restructure (continued)
 Worked on: Follow-up fixes from review, test cleanup, docs
 Completed:

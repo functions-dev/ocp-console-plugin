@@ -1,8 +1,10 @@
 import { CodeEditor, DocumentTitle, ListPageHeader } from '@openshift-console/dynamic-plugin-sdk';
 import type { Language } from '@patternfly/react-code-editor';
 import {
-  Content,
-  ContentVariants,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
   EmptyState,
   EmptyStateBody,
   PageSection,
@@ -49,17 +51,26 @@ function FunctionEditPageContent() {
       </ListPageHeader>
       <PageSection>
         <EditToolbar hasChanges={state.hasChanges} onSave={state.saveFiles} />
-        {state.repoMetadata && (
-          <Content component={ContentVariants.p}>
-            {state.repoMetadata.name}
-            {' · '}
-            <a href={state.repoMetadata.url} target="_blank" rel="noopener noreferrer">
-              {state.repoMetadata.owner}/{state.repoMetadata.name}
-            </a>
-          </Content>
-        )}
         <Sidebar hasGutter hasBorder>
           <SidebarPanel width={{ default: 'width_25' }}>
+            {state.repoMetadata && (
+              <DescriptionList isHorizontal isCompact>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('Repository')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <a href={state.repoMetadata.url} target="_blank" rel="noopener noreferrer">
+                      {state.repoMetadata.owner}/{state.repoMetadata.name}
+                    </a>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>{t('Branch')}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    {state.repoMetadata.defaultBranch}
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              </DescriptionList>
+            )}
             <FileTreeView
               files={state.files}
               selectedPath={state.selectedPath}
