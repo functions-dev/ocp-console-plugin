@@ -2,6 +2,18 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-06-19 | Session: MSW migration merge conflict resolution
+Worked on: Merge upstream/master into SRVOCF-846 branch, resolve conflicts
+Completed:
+- Merged upstream/master (cluster CA feature) into SRVOCF-846--msw-migration
+- Resolved conflict in OcpClusterService.test.ts: kept MSW handlers, added new CA endpoint handler
+- Added CA handler to FunctionCreatePage.test.tsx for the create flow
+- Added public CA test (ca: null) using MSW override
+- All 136 tests passing
+Left off: Merge commit done, one staged fix for FunctionCreatePage CA handler.
+Blockers: None
+
+---
 ## 2026-06-16 | Session: PR #36 - GitHub Pages local dev + clipboard fix (SRVOCF-843)
 Worked on: Local GitHub Pages dev support, clipboard copy error handling, PR review feedback
 Completed:
