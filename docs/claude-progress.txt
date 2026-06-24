@@ -2,6 +2,17 @@
 # Newest entries first. Agents: append your entry at the top after the header.
 
 ---
+## 2026-06-24 | Session: Fix pre-commit hook error handling
+Worked on: Fix pre-commit hook to fail on lint/type-check/go vet errors
+Completed:
+- Added `set -euo pipefail` to pre-commit hook (script now exits on any command failure)
+- Changed shebang from sh to bash (pipefail is not POSIX)
+- Deduplicated gofmt call (was running twice, now captured in variable)
+- Tested: hook correctly blocks on lint failure and passes when clean
+Left off: Push fix to PR #6 on upstream repo.
+Blockers: None
+
+---
 ## 2026-05-21 | Session: Page co-location restructure (continued)
 Worked on: Follow-up fixes from review, test cleanup, docs
 Completed:
